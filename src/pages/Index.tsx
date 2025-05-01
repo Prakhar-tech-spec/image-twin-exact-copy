@@ -20,7 +20,7 @@ const Index = () => {
       {/* Sidebar */}
       <div className="w-64 bg-black text-white flex flex-col">
         <div className="p-5 flex items-center">
-          <span className="text-purple-400 font-bold text-2xl">Remunix</span>
+          <span className="text-purple-400 text-2xl">Remunix</span>
         </div>
         
         <div className="flex-1 px-3">
@@ -65,7 +65,7 @@ const Index = () => {
         <header className="bg-white border-b p-4 flex items-center justify-between">
           <div>
             <div className="text-gray-500">Welcome back, John👋</div>
-            <h1 className="text-3xl font-bold">Dashboard Overview</h1>
+            <h1 className="text-3xl">Dashboard Overview</h1>
           </div>
           
           <div className="flex items-center space-x-4">
@@ -128,7 +128,7 @@ const Index = () => {
               {/* Payroll Expenses */}
               <div className="bg-white rounded-lg p-5">
                 <div className="flex justify-between items-center mb-1">
-                  <h2 className="text-xl font-bold">Payroll Expenses Breakdown</h2>
+                  <h2 className="text-xl">Payroll Expenses Breakdown</h2>
                   
                   <div className="flex space-x-2">
                     <button className="p-2 rounded-full border hover:bg-gray-50">
@@ -195,7 +195,7 @@ const Index = () => {
               {/* Payroll Activities */}
               <div className="bg-white rounded-lg p-5">
                 <div className="flex justify-between items-center mb-1">
-                  <h2 className="text-xl font-bold">Payroll Activities</h2>
+                  <h2 className="text-xl">Payroll Activities</h2>
                   <button className="text-gray-500 hover:text-gray-700 flex items-center text-sm">
                     See More <ChevronRight size={16} />
                   </button>
@@ -277,7 +277,7 @@ const Index = () => {
               {/* Attendance */}
               <div className="bg-white rounded-lg p-5">
                 <div className="flex justify-between items-center mb-1">
-                  <h2 className="text-xl font-bold">Attendance</h2>
+                  <h2 className="text-xl">Attendance</h2>
                   <button className="text-gray-500 hover:text-gray-700 flex items-center text-sm">
                     See More <ChevronRight size={16} />
                   </button>
@@ -285,19 +285,19 @@ const Index = () => {
                 <p className="text-gray-500 text-sm mb-4">Here's are attendance list</p>
                 
                 <div className="flex items-center mb-5">
-                  <h3 className="text-lg font-semibold mr-2">Mar 14, 2025</h3>
+                  <h3 className="text-lg mr-2">Mar 14, 2025</h3>
                   <div className="flex items-center ml-4">
-                    <span className="text-purple-600 text-xl font-bold">40</span>
+                    <span className="text-purple-600 text-xl">40</span>
                     <span className="text-gray-600 ml-1">On time</span>
                   </div>
                   <div className="mx-4 text-gray-300">|</div>
                   <div className="flex items-center">
-                    <span className="text-orange-500 text-xl font-bold">12</span>
+                    <span className="text-orange-500 text-xl">12</span>
                     <span className="text-gray-600 ml-1">Late</span>
                   </div>
                   <div className="mx-4 text-gray-300">|</div>
                   <div className="flex items-center">
-                    <span className="text-red-500 text-xl font-bold">8</span>
+                    <span className="text-red-500 text-xl">8</span>
                     <span className="text-gray-600 ml-1">Absent</span>
                   </div>
                 </div>
@@ -367,7 +367,7 @@ const Index = () => {
               {/* Announcement */}
               <div className="bg-white rounded-lg p-5">
                 <div className="flex justify-between items-center mb-1">
-                  <h2 className="text-xl font-bold">Announcement</h2>
+                  <h2 className="text-xl">Announcement</h2>
                   <button className="text-gray-500 hover:text-gray-700 flex items-center text-sm">
                     See More <ChevronRight size={16} />
                   </button>
@@ -377,12 +377,12 @@ const Index = () => {
                 <div className="flex items-center mb-4">
                   <div className="min-w-16 h-16 bg-orange-100 rounded-lg flex items-center justify-center text-center p-2 mr-4">
                     <div>
-                      <div className="text-orange-800 font-semibold">Dec</div>
-                      <div className="text-orange-800 text-lg font-bold">12</div>
+                      <div className="text-orange-800">Dec</div>
+                      <div className="text-orange-800 text-lg">12</div>
                     </div>
                   </div>
                   <div className="flex-1">
-                    <h4 className="font-semibold">Payroll Deadline</h4>
+                    <h4 className="">Payroll Deadline</h4>
                     <p className="text-sm text-gray-600">March Salary Processing by March 25</p>
                   </div>
                   <button className="text-gray-400 hover:text-gray-600">
@@ -393,12 +393,12 @@ const Index = () => {
                 <div className="flex items-center">
                   <div className="min-w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center text-center p-2 mr-4">
                     <div>
-                      <div className="text-blue-800 font-semibold">Dec</div>
-                      <div className="text-blue-800 text-lg font-bold">12</div>
+                      <div className="text-blue-800">Dec</div>
+                      <div className="text-blue-800 text-lg">12</div>
                     </div>
                   </div>
                   <div className="flex-1">
-                    <h4 className="font-semibold">Tax Compliance</h4>
+                    <h4 className="">Tax Compliance</h4>
                     <p className="text-sm text-gray-600">Submit Employee Tax Forms by April 5</p>
                   </div>
                   <button className="text-gray-400 hover:text-gray-600">
@@ -437,7 +437,7 @@ const StatCard = ({ icon, iconBg, title, value, description }) => {
         </div>
       </div>
       <div className="mb-1 text-gray-500">{title}</div>
-      <div className="text-3xl font-bold mb-2">{value}</div>
+      <div className="text-3xl mb-2">{value}</div>
       <div className="text-sm text-gray-600">{description}</div>
     </div>
   );
