@@ -39,7 +39,7 @@ const Index = () => {
         {/* Upgrade section */}
         <div className="mt-auto mb-10">
           <div className="bg-gradient-to-b from-purple-600 to-purple-800 rounded-3xl mx-3 p-6 text-center relative overflow-hidden">
-            <div className="absolute right-8 top-8 bg-white rounded-full p-3">
+            <div className="absolute right-8 top-6 bg-white rounded-full p-2">
               <Rocket size={20} className="text-purple-600" />
             </div>
             <p className="text-sm mt-6 mb-2">Additional features to enhance your security.</p>
