@@ -86,6 +86,16 @@ const Customers = () => {
     fetchAllEmis();
   }, []);
 
+  // Auto-select customer if customerId is present in query params
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const customerId = params.get('customerId');
+    if (customerId && customerList.length > 0) {
+      const found = customerList.find(c => String(c.id) === String(customerId));
+      if (found) setSelected(found);
+    }
+  }, [location.search, customerList]);
+
   async function fetchCustomers() {
     const data = await getCustomers();
     setCustomerList(data);
@@ -473,11 +483,18 @@ const Customers = () => {
                             </td>
                             <td className="px-2 py-3 text-sm">{c.primaryContact || c.phone}</td>
                             <td className="px-2 py-3 text-sm">
-                              {nextEmi ? (
-                                <span className={new Date(nextEmi.due_date) < new Date() ? "text-red-500 font-semibold" : ""}>
-                                  {nextEmi.due_date}
-                                </span>
-                              ) : 'All Paid'}
+                              {(() => {
+                                const emis = allEmis.filter(e => e.customer_id === c.id);
+                                if (emis.length === 0) return '-';
+                                const unpaidEmis = emis.filter(e => !e.paid);
+                                if (unpaidEmis.length === 0 && emis.length >= (parseInt(c.emiTenure) || 0)) return 'All Paid';
+                                const nextEmi = unpaidEmis.length > 0 ? unpaidEmis.reduce((a, b) => new Date(a.due_date) < new Date(b.due_date) ? a : b) : null;
+                                return nextEmi ? (
+                                  <span className={new Date(nextEmi.due_date) < new Date() ? "text-red-500 font-semibold" : ""}>
+                                    {nextEmi.due_date}
+                                  </span>
+                                ) : '-';
+                              })()}
                             </td>
                             <td className="px-2 py-3 text-sm">{nextEmi ? `₹${nextEmi.fine || 0}` : '-'}</td>
                             <td className="px-2 py-3">

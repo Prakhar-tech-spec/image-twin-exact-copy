@@ -15,9 +15,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import RocketSVG from '../assets/rocket.svg';
-import { getNotifications, getCustomers, getEmis, updateNotification } from "@/lib/db";
+import { getNotifications, getCustomers, getEmis, updateNotification, addNotification, deleteNotification } from "@/lib/db";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { AnimatePresence, motion } from 'framer-motion';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import autoTable from 'jspdf-autotable';
 
 const NOTIF_SOUND = "/notification.mp3";
 
@@ -30,6 +33,10 @@ const Index = () => {
   const lastNotifId = React.useRef(null);
   const [stats, setStats] = React.useState({ total: 0, active: 0, inactive: 0, new_customers: 0 });
   const [emiStats, setEmiStats] = React.useState({ totalEmis: 0, pendingEmis: 0, overdueEmis: 0, totalDeductions: 0 });
+  const dashboardRef = React.useRef(null);
+  const [customerList, setCustomerList] = React.useState([]);
+  const [upcomingEmiDetails, setUpcomingEmiDetails] = React.useState([]);
+  const [emisDueDetails, setEmisDueDetails] = React.useState([]);
 
   // Poll notifications every 60s
   React.useEffect(() => {
@@ -40,7 +47,11 @@ const Index = () => {
 
   React.useEffect(() => {
     fetchStats();
-    const interval = setInterval(fetchStats, 60000);
+    fetchCustomerList();
+    const interval = setInterval(() => {
+      fetchStats();
+      fetchCustomerList();
+    }, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -50,12 +61,123 @@ const Index = () => {
     return () => clearInterval(interval);
   }, []);
 
+  React.useEffect(() => {
+    function normalizeDate(date) {
+      const d = new Date(date);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+    async function fetchUpcomingEmis() {
+      const emis = await getEmis();
+      const today = normalizeDate(new Date());
+      const fiveDaysLater = new Date(today);
+      fiveDaysLater.setDate(today.getDate() + 5);
+      const upcomingEmis = emis.filter(e => {
+        const due = normalizeDate(e.due_date);
+        return !e.paid && due >= today && due <= fiveDaysLater;
+      });
+      setUpcomingEmiDetails(upcomingEmis.map(e => {
+        const customer = customerList.find(c => c.id === e.customer_id);
+        return {
+          name: customer?.name || '-',
+          due_date: e.due_date,
+          amount: e.amount
+        };
+      }));
+    }
+    fetchUpcomingEmis();
+  }, [customerList]);
+
+  React.useEffect(() => {
+    async function fetchEmisDue() {
+      const emis = await getEmis();
+      // Show all unpaid EMIs with a fine, regardless of due date
+      const dueEmis = emis.filter(e => {
+        return !e.paid && e.fine > 0;
+      });
+      setEmisDueDetails(dueEmis.map(e => {
+        const customer = customerList.find(c => c.id === e.customer_id);
+        return {
+          name: customer?.name || '-',
+          due_date: e.due_date,
+          amount: e.amount,
+          fine: e.fine
+        };
+      }));
+    }
+    fetchEmisDue();
+  }, [customerList]);
+
+  // Generate notifications for EMIs due today
+  React.useEffect(() => {
+    async function generateDueEmiNotifications() {
+      const emis = await getEmis();
+      const notifications = await getNotifications();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayStr = today.toISOString().slice(0, 10);
+      // Get dismissed map from localStorage
+      let dismissedMap = {};
+      try {
+        dismissedMap = JSON.parse(localStorage.getItem('dismissedMap') || '{}');
+      } catch (e) {
+        dismissedMap = {};
+      }
+      for (const emi of emis) {
+        if (!emi.paid) {
+          const emiDueDate = new Date(emi.due_date);
+          emiDueDate.setHours(0, 0, 0, 0);
+          if (emiDueDate.getTime() === today.getTime()) {
+            // Check if notification for this EMI and date already exists
+            const alreadyNotified = notifications.some(n => n.emi_id === emi.id && n.due_date === emi.due_date);
+            // Check if dismissed today
+            if (!alreadyNotified && !(dismissedMap[emi.id] === todayStr)) {
+              await addNotification({
+                id: Date.now() + Math.floor(Math.random() * 10000),
+                message: `EMI due today for customer ID ${emi.customer_id}`,
+                due_date: emi.due_date,
+                type: 'EMI Due',
+                read: 0,
+                customer_id: emi.customer_id,
+                emi_id: emi.id
+              });
+            }
+          }
+        }
+      }
+    }
+    generateDueEmiNotifications();
+  }, []);
+
+  React.useEffect(() => {
+    // On mount, load lastNotifId from localStorage
+    const storedId = localStorage.getItem('lastNotifId');
+    if (storedId) lastNotifId.current = storedId;
+  }, []);
+
   async function fetchNotifications() {
     const data = await getNotifications();
     setNotifications(data);
-    if (data.length > 0 && data[0].id !== lastNotifId.current) {
-      if (notifSoundRef.current) notifSoundRef.current.play();
-      lastNotifId.current = data[0].id;
+    if (data.length > 0) {
+      const notif = data[0];
+      const todayStr = new Date().toISOString().slice(0, 10);
+      // Get or initialize notified map
+      let notifiedMap = {};
+      try {
+        notifiedMap = JSON.parse(localStorage.getItem('notifiedMap') || '{}');
+      } catch (e) {
+        notifiedMap = {};
+      }
+      // Only play sound if not notified today for this customer
+      if (notif.customer_id && notifiedMap[notif.customer_id] !== todayStr && notif.id !== lastNotifId.current) {
+        if (notifSoundRef.current) {
+          notifSoundRef.current.play().catch(() => {});
+        }
+        notifiedMap[notif.customer_id] = todayStr;
+        localStorage.setItem('notifiedMap', JSON.stringify(notifiedMap));
+      }
+      lastNotifId.current = notif.id;
+      localStorage.setItem('lastNotifId', notif.id);
     }
   }
 
@@ -76,6 +198,11 @@ const Index = () => {
     });
   }
 
+  async function fetchCustomerList() {
+    const customers = await getCustomers();
+    setCustomerList(customers);
+  }
+
   async function fetchEmiStats() {
     const emis = await getEmis();
     const today = new Date().toISOString().slice(0, 10);
@@ -90,6 +217,117 @@ const Index = () => {
     await updateNotification({ ...notif, read: 1 });
     setNotifOpen(false);
     navigate(`/customers?customerId=${notif.customer_id}`);
+    await deleteNotification(notif.id); // Remove notification after navigating
+
+    // Track dismissed notification for the day
+    const todayStr = new Date().toISOString().slice(0, 10);
+    let dismissedMap = {};
+    try {
+      dismissedMap = JSON.parse(localStorage.getItem('dismissedMap') || '{}');
+    } catch (e) {
+      dismissedMap = {};
+    }
+    if (notif.emi_id) {
+      dismissedMap[notif.emi_id] = todayStr;
+      localStorage.setItem('dismissedMap', JSON.stringify(dismissedMap));
+    }
+
+    // Fetch the new notifications list
+    const data = await getNotifications();
+    setNotifications(data);
+
+    // Update lastNotifId to the new top notification (if any)
+    if (data.length > 0) {
+      lastNotifId.current = data[0].id;
+      localStorage.setItem('lastNotifId', data[0].id);
+    } else {
+      lastNotifId.current = null;
+      localStorage.removeItem('lastNotifId');
+    }
+  }
+
+  const handleDownloadPDF = async () => {
+    // Dashboard stats
+    const dashboardData = [
+      ['Total Customers', stats.total],
+      ['Active Customers', stats.active],
+      ['Inactive Customers', stats.inactive],
+      ['New Customers', stats.new_customers],
+      ['Total EMI Filed', emiStats.totalEmis],
+      ['Pending EMI Filings', emiStats.pendingEmis],
+      ['Overdue EMI Payment', emiStats.overdueEmis],
+      ['Total EMI Deductions', emiStats.totalDeductions],
+    ];
+
+    // Fetch customers and EMIs
+    const customers = await getCustomers();
+    const emis = await getEmis();
+
+    // Prepare customer table
+    const customerHeaders = ['Name', 'Primary Contact', 'Status', 'Device Price', 'EMI Tenure', 'Start Date'];
+    const customerRows = customers.map(c => [
+      c.name,
+      c.primaryContact || c.phone,
+      c.status,
+      c.devicePrice,
+      c.emiTenure,
+      c.startDate || c.joinDate
+    ]);
+
+    // Prepare EMI table
+    const emiHeaders = ['Customer', 'Due Date', 'Amount', 'Fine', 'Status'];
+    const emiRows = emis.map(e => [
+      customers.find(c => c.id === e.customer_id)?.name || '-',
+      e.due_date,
+      e.amount,
+      e.fine,
+      e.paid ? 'Paid' : 'Unpaid'
+    ]);
+
+    // Create PDF
+    const pdf = new jsPDF('landscape');
+    pdf.setFontSize(18);
+    pdf.text('Dashboard Overview', 14, 18);
+    autoTable(pdf, {
+      startY: 24,
+      head: [['Metric', 'Value']],
+      body: dashboardData,
+    });
+
+    pdf.addPage();
+    pdf.setFontSize(18);
+    pdf.text('Customers', 14, 18);
+    autoTable(pdf, {
+      startY: 24,
+      head: [customerHeaders],
+      body: customerRows,
+      styles: { fontSize: 10 },
+    });
+
+    pdf.addPage();
+    pdf.setFontSize(18);
+    pdf.text('EMIs', 14, 18);
+    autoTable(pdf, {
+      startY: 24,
+      head: [emiHeaders],
+      body: emiRows,
+      styles: { fontSize: 10 },
+    });
+
+    pdf.save('software-data-report.pdf');
+  };
+
+  const now = new Date();
+  const thisMonth = now.getMonth();
+  const thisYear = now.getFullYear();
+  const newCustomers = customerList.filter(c => {
+    const d = new Date(c.joinDate || c.startDate || 0);
+    return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+  });
+
+  // Add a handler to delete a notification
+  async function handleDeleteNotification(id) {
+    await deleteNotification(id);
     fetchNotifications();
   }
 
@@ -169,9 +407,18 @@ const Index = () => {
                     {notifications.length === 0 ? (
                       <div className="p-4 text-gray-400 text-center">No notifications</div>
                     ) : notifications.map(notif => (
-                      <div key={notif.id} className="p-4 hover:bg-gray-50 cursor-pointer border-b last:border-b-0" onClick={() => handleNotifClick(notif)}>
-                        <div className="font-medium">{notif.message}</div>
-                        <div className="text-xs text-gray-400 mt-1">Due: {notif.due_date} | {notif.type}</div>
+                      <div key={notif.id} className="p-4 hover:bg-gray-50 cursor-pointer border-b last:border-b-0 flex items-center justify-between" onClick={() => handleNotifClick(notif)}>
+                        <div>
+                          <div className="font-medium">{notif.message}</div>
+                          <div className="text-xs text-gray-400 mt-1">Due: {notif.due_date} | {notif.type}</div>
+                        </div>
+                        <button
+                          className="ml-4 text-gray-400 hover:text-red-500 text-lg font-bold px-2 py-0.5 rounded-full focus:outline-none"
+                          title="Delete notification"
+                          onClick={e => { e.stopPropagation(); handleDeleteNotification(notif.id); }}
+                        >
+                          &times;
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -186,7 +433,7 @@ const Index = () => {
           </header>
           
           {/* Dashboard content */}
-          <div className="flex-1 overflow-auto p-6">
+          <div className="flex-1 overflow-auto p-6" ref={dashboardRef}>
             {/* Stats Grid */}
             <div className="grid grid-cols-4 gap-4 mb-6">
               <StatCard 
@@ -231,7 +478,7 @@ const Index = () => {
                   <div className="flex justify-between items-center mb-1">
                     <h2 className="text-xl">Overview</h2>
                     <div className="flex space-x-2">
-                      <button className="p-2 rounded-full border hover:bg-gray-50">
+                      <button className="p-2 rounded-full border hover:bg-gray-50" onClick={handleDownloadPDF} title="Download PDF">
                         <Download size={20} />
                       </button>
                       <button className="p-2 rounded-full border hover:bg-gray-50">
@@ -269,36 +516,83 @@ const Index = () => {
                       See More <ChevronRight size={16} />
                     </Link>
                   </div>
-                  <p className="text-gray-500 text-sm mb-4">Here's a list of your customers</p>
-                  {/* No customers yet */}
-                  <div className="text-gray-400 text-center py-8">No customers yet.</div>
+                  <p className="text-gray-500 text-sm mb-4">Here's a list of your new customers this month</p>
+                  {newCustomers.length === 0 ? (
+                    <div className="text-gray-400 text-center py-8">No new customers yet.</div>
+                  ) : (
+                    <table className="w-full text-left border-separate border-spacing-0">
+                      <thead>
+                        <tr className="text-gray-600 text-sm">
+                          <th className="px-4 pb-2 pt-2 font-medium">Name</th>
+                          <th className="px-2 pb-2 pt-2 font-medium">Primary Contact</th>
+                          <th className="px-2 pb-2 pt-2 font-medium">Status</th>
+                          <th className="px-2 pb-2 pt-2 font-medium">Start Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {newCustomers.map((c, i) => (
+                          <tr key={i} className="border-t border-gray-200 last:border-b-0">
+                            <td className="px-4 py-3">{c.name}</td>
+                            <td className="px-2 py-3">{c.primaryContact || c.phone}</td>
+                            <td className="px-2 py-3">{c.status}</td>
+                            <td className="px-2 py-3">{c.startDate || c.joinDate}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
               </div>
               
               {/* Right column */}
               <div className="w-96 space-y-6">
-                {/* Attendance */}
+                {/* Upcoming EMI's */}
                 <div className="bg-white rounded-lg p-5">
                   <div className="flex justify-between items-center mb-1">
                     <h2 className="text-xl">Upcoming EMI's</h2>
-                    <button className="text-gray-500 hover:text-gray-700 flex items-center text-sm">
+                    <Link to="/emi" className="text-gray-500 hover:text-gray-700 flex items-center text-sm">
                       See More <ChevronRight size={16} />
-                    </button>
+                    </Link>
                   </div>
                   <p className="text-gray-500 text-sm mb-4">Here's a list of upcoming EMI's</p>
-                  <div className="text-gray-400 text-center py-8">No upcoming EMI's yet.</div>
+                  {upcomingEmiDetails.length === 0 ? (
+                    <div className="text-gray-400 text-center py-8">No upcoming EMI's yet.</div>
+                  ) : (
+                    <ul className="divide-y divide-gray-200">
+                      {upcomingEmiDetails.map((emi, i) => (
+                        <li key={i} className="py-2 flex justify-between items-center">
+                          <span className="font-medium">{emi.name}</span>
+                          <span className="text-sm text-gray-600">Due: {emi.due_date}</span>
+                          <span className="text-sm text-purple-700 font-semibold">₹{emi.amount}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
                 
-                {/* Announcement */}
+                {/* EMI's Due */}
                 <div className="bg-white rounded-lg p-5">
                   <div className="flex justify-between items-center mb-1">
                     <h2 className="text-xl">EMI's Due</h2>
-                    <button className="text-gray-500 hover:text-gray-700 flex items-center text-sm">
+                    <Link to="/emi" className="text-gray-500 hover:text-gray-700 flex items-center text-sm">
                       See More <ChevronRight size={16} />
-                    </button>
+                    </Link>
                   </div>
                   <p className="text-gray-500 text-sm mb-4">Here's a list of EMI's due</p>
-                  <div className="text-gray-400 text-center py-8">No EMI's due yet.</div>
+                  {emisDueDetails.length === 0 ? (
+                    <div className="text-gray-400 text-center py-8">No EMI's due yet.</div>
+                  ) : (
+                    <ul className="divide-y divide-gray-200">
+                      {emisDueDetails.map((emi, i) => (
+                        <li key={i} className="py-2 flex justify-between items-center">
+                          <span className="font-medium">{emi.name}</span>
+                          <span className="text-sm text-gray-600">Due: {emi.due_date}</span>
+                          <span className="text-sm text-red-700 font-semibold">₹{emi.amount}</span>
+                          <span className="text-xs text-red-500 ml-2">Fine: ₹{emi.fine}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </div>
             </div>
