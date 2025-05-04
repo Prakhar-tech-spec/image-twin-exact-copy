@@ -71,3 +71,60 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+
+# DueDate EMI Manager (Web)
+
+## Features
+- Fully offline-capable, browser-based React app
+- Persistent data storage using IndexedDB (per user/device)
+- Real-time notifications and sound (in-browser)
+- All features: dashboard, EMI management, notifications, etc.
+- Deployable to Netlify or any static host
+
+## Development
+
+1. **Install dependencies:**
+   ```sh
+   npm install
+   ```
+2. **Run in development mode:**
+   ```sh
+   npm run dev
+   ```
+   - The app will open in your browser at `http://localhost:5173` (or similar).
+
+## Build for Production
+
+1. **Build the app:**
+   ```sh
+   npm run build
+   ```
+   - The production-ready files will be in the `dist/` folder.
+
+## Deploy to Netlify
+
+1. **Push your code to GitHub/GitLab/Bitbucket.**
+2. **Go to [Netlify](https://netlify.com/)** and create a new site from your repo.
+3. **Set the build command:**
+   ```sh
+   npm run build
+   ```
+4. **Set the publish directory:**
+   ```
+   dist
+   ```
+5. **Deploy!**
+
+## Data Storage
+- All customer and EMI data is stored in the browser using IndexedDB.
+- Data is persistent per user/device, but not shared between devices.
+
+## Notifications
+- In-browser notifications and sound are supported for EMI reminders and alerts.
+
+## Security
+- All data stays in the user's browser. No server or cloud storage is used.
+
+## Notes
+- The app is now frontend-only. All backend and Electron code has been removed.
+- Works on any modern browser, on any device.
