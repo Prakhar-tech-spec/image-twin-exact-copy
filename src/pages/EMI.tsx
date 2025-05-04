@@ -375,6 +375,7 @@ const NavItem = ({ icon, text, active = false }) => {
   if (text === "Dashboard") to = "/";
   if (text === "Customers") to = "/customers";
   if (text === "EMI") to = "/emi";
+  if (text === "Settings") to = "/settings";
   return (
     <Link to={to} className={`flex items-center space-x-3 p-3 my-1 rounded-full cursor-pointer ${
       active ? 'bg-gradient-to-r from-purple-700 to-purple-500 text-white' : 'text-gray-400 hover:bg-gray-800'
