@@ -18,6 +18,7 @@ import {
 import { Link, useLocation } from "react-router-dom";
 import RocketSVG from '../assets/rocket.svg';
 import PenSVG from '../assets/pen-svgrepo-com.svg';
+import IconSVG from '../assets/icon.svg';
 import { getCustomers, addCustomer, updateCustomer, deleteCustomer, getEmis, addEmi, updateEmi, deleteEmi } from "@/lib/db";
 import { AnimatePresence, motion } from 'framer-motion';
 
@@ -558,7 +559,7 @@ const Customers = () => {
                       <div className="flex gap-3 mb-4">
                         {/* Edit Button */}
                         <button className="flex-1 flex items-center justify-center bg-white border border-black rounded-full h-12 font-medium text-gray-700 hover:bg-gray-50 transition" title="Edit" onClick={handleEditCustomer}>
-                          <img src={PenSVG} alt="Edit" className="h-5 w-5" />
+                          <img src={IconSVG} alt="Edit" className="h-5 w-5" />
                         </button>
                         {/* Delete Button */}
                         <button className="flex-1 flex items-center justify-center gap-2 bg-white border border-black rounded-full h-12 font-medium hover:bg-gray-50 transition" title="Delete" onClick={() => setShowDeleteModal(true)}>
