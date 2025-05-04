@@ -264,12 +264,14 @@ const Index = () => {
     const emis = await getEmis();
 
     // Prepare customer table
-    const customerHeaders = ['Name', 'Primary Contact', 'Status', 'Device Price', 'EMI Tenure', 'Start Date'];
+    const customerHeaders = ['Name', 'Primary Contact', 'Status', 'Original Device Price', 'Downpayment', 'Loan Amount', 'EMI Tenure', 'Start Date'];
     const customerRows = customers.map(c => [
       c.name,
       c.primaryContact || c.phone,
       c.status,
-      c.devicePrice,
+      c.originalDevicePrice,
+      c.downpayment,
+      c.loanAmount,
       c.emiTenure,
       c.startDate || c.joinDate
     ]);

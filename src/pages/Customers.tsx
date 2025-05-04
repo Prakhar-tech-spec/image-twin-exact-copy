@@ -70,7 +70,9 @@ const Customers = () => {
     primaryMobileIMEI: "",
     secondaryMobileModel: "",
     secondaryMobileIMEI: "",
-    devicePrice: "",
+    originalDevicePrice: "",
+    downpayment: "",
+    loanAmount: "",
     emiTenure: "",
     startDate: new Date().toISOString().slice(0, 10),
     status: "Active"
@@ -129,12 +131,12 @@ const Customers = () => {
     // Generate all expected due dates
     for (let i = 0; i < tenure; i++) {
       const dueDate = new Date(startDate);
-      dueDate.setMonth(startDate.getMonth() + i);
+      dueDate.setMonth(startDate.getMonth() + i + 1); // Start from next month
       const dueDateStr = dueDate.toISOString().slice(0, 10);
       const exists = emis.some(e => e.customer_id === customerId && e.due_date === dueDateStr);
       if (!exists) {
         // Create missing EMI
-        const emiAmount = customer.devicePrice && customer.emiTenure ? parseFloat(customer.devicePrice)/parseInt(customer.emiTenure) : 0;
+        const emiAmount = customer.loanAmount && customer.emiTenure ? parseFloat(customer.loanAmount)/parseInt(customer.emiTenure) : 0;
         await addEmi({
           customer_id: customerId,
           due_date: dueDateStr,
@@ -173,7 +175,7 @@ const Customers = () => {
       const emisForCustomer = await getEmis();
       const emisForDate = emisForCustomer.filter(e => e.customer_id === selected.id && e.due_date === emiDate);
       const unpaidEmi = emisForDate.find(e => !e.paid);
-      let emiAmount = selected.devicePrice && selected.emiTenure ? parseFloat(selected.devicePrice)/parseInt(selected.emiTenure) : 0;
+      let emiAmount = selected.loanAmount && selected.emiTenure ? parseFloat(selected.loanAmount)/parseInt(selected.emiTenure) : 0;
       if (unpaidEmi) {
         await updateEmi({ ...unpaidEmi, paid: 1 });
       } else if (emisForDate.length === 0) {
@@ -221,7 +223,7 @@ const Customers = () => {
   async function handleFineSubmit() {
     // At least one field required
     if (!fineAmount && !finePercent) return;
-    const emiAmount = selected.devicePrice && selected.emiTenure ? parseFloat(selected.devicePrice)/parseInt(selected.emiTenure) : 0;
+    const emiAmount = selected.loanAmount && selected.emiTenure ? parseFloat(selected.loanAmount)/parseInt(selected.emiTenure) : 0;
     let fine = 0;
     if (fineAmount) fine = parseFloat(fineAmount);
     else if (finePercent) fine = (parseFloat(finePercent)/100) * emiAmount;
@@ -253,11 +255,17 @@ const Customers = () => {
     fetchAllEmis();
   }
 
-  const filteredCustomers = customerList.filter(c =>
-    c.name?.toLowerCase().includes(search.toLowerCase()) ||
-    c.email?.toLowerCase().includes(search.toLowerCase()) ||
-    c.phone?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredCustomers = customerList.filter(c => {
+    const searchVal = search.toLowerCase();
+    return (
+      (c.name && c.name.toLowerCase().includes(searchVal)) ||
+      (c.primaryMobileIMEI && c.primaryMobileIMEI.toLowerCase().includes(searchVal)) ||
+      (c.secondaryMobileIMEI && c.secondaryMobileIMEI.toLowerCase().includes(searchVal)) ||
+      (c.primaryContact && c.primaryContact.toLowerCase().includes(searchVal)) ||
+      (c.phone && c.phone.toLowerCase().includes(searchVal)) ||
+      (c.email && c.email.toLowerCase().includes(searchVal))
+    );
+  });
 
   async function handleAddCustomer(e) {
     e.preventDefault();
@@ -282,7 +290,9 @@ const Customers = () => {
       primaryMobileIMEI: (selected as any).primaryMobileIMEI || '',
       secondaryMobileModel: (selected as any).secondaryMobileModel || '',
       secondaryMobileIMEI: (selected as any).secondaryMobileIMEI || '',
-      devicePrice: (selected as any).devicePrice || '',
+      originalDevicePrice: (selected as any).originalDevicePrice || '',
+      downpayment: (selected as any).downpayment || '',
+      loanAmount: (selected as any).loanAmount || '',
       emiTenure: (selected as any).emiTenure || '',
       startDate: (selected as any).startDate || selected.joinDate || new Date().toISOString().slice(0, 10),
       status: selected.status || 'Active',
@@ -298,16 +308,23 @@ const Customers = () => {
   }
 
   async function handleDeleteCustomer() {
-    if (window.confirm('Are you sure you want to delete this customer?')) {
-      await deleteCustomer(selected.id);
-      // Also delete all EMIs for this customer
-      const emis = await getEmis();
-      const customerEmis = emis.filter(e => e.customer_id === selected.id);
-      for (const emi of customerEmis) {
-        await deleteEmi(emi.id);
-      }
-      fetchCustomers();
-      setSelected(null);
+    await deleteCustomer(selected.id);
+    // Also delete all EMIs for this customer
+    const emis = await getEmis();
+    const customerEmis = emis.filter(e => e.customer_id === selected.id);
+    for (const emi of customerEmis) {
+      await deleteEmi(emi.id);
+    }
+    fetchCustomers();
+    setSelected(null);
+    fetchAllEmis();
+  }
+
+  async function markEmiAsUnpaid(emiId) {
+    const emi = emiHistory.find(e => e.id === emiId);
+    if (emi) {
+      await updateEmi({ ...emi, paid: 0 });
+      if (selected && selected.id) fetchEmiHistory(selected.id);
       fetchAllEmis();
     }
   }
@@ -440,7 +457,9 @@ const Customers = () => {
                             primaryMobileIMEI: "",
                             secondaryMobileModel: "",
                             secondaryMobileIMEI: "",
-                            devicePrice: "",
+                            originalDevicePrice: "",
+                            downpayment: "",
+                            loanAmount: "",
                             emiTenure: "",
                             startDate: new Date().toISOString().slice(0, 10),
                             status: "Active"
@@ -559,8 +578,9 @@ const Customers = () => {
                         <div><span className="font-medium text-gray-800">Secondary Mobile Model:</span> <span className="ml-1 text-gray-600">{selected && ('secondaryMobileModel' in selected) ? (selected as any).secondaryMobileModel || '-' : '-'}</span></div>
                         <div><span className="font-medium text-gray-800">Secondary Mobile IMEI Number:</span> <span className="ml-1 text-gray-600">{selected && ('secondaryMobileIMEI' in selected) ? (selected as any).secondaryMobileIMEI || '-' : '-'}</span></div>
                         <div className="flex flex-col gap-y-2 min-w-[140px]">
-                          <div><span className="font-medium text-gray-800">Device Price:</span> <span className="ml-1 text-gray-600">{selected && ('devicePrice' in selected) ? ((selected as any).devicePrice ? `₹${(selected as any).devicePrice}` : '-') : '-'}</span></div>
-                          <div><span className="font-medium text-gray-800">Monthly EMI:</span> <span className="ml-1 text-gray-600">{selected && ('devicePrice' in selected && 'emiTenure' in selected && (selected as any).devicePrice && (selected as any).emiTenure) ? `₹${(parseFloat((selected as any).devicePrice)/parseInt((selected as any).emiTenure)).toFixed(2)}` : '-'}</span></div>
+                          <div><span className="font-medium text-gray-800">Original Device Price:</span> <span className="ml-1 text-gray-600">{selected && ('originalDevicePrice' in selected) ? ((selected as any).originalDevicePrice ? `₹${(selected as any).originalDevicePrice}` : '-') : '-'}</span></div>
+                          <div><span className="font-medium text-gray-800">Downpayment:</span> <span className="ml-1 text-gray-600">{selected && ('downpayment' in selected) ? ((selected as any).downpayment ? `₹${(selected as any).downpayment}` : '-') : '-'}</span></div>
+                          <div><span className="font-medium text-gray-800">Loan Amount:</span> <span className="ml-1 text-gray-600">{selected && ('loanAmount' in selected) ? ((selected as any).loanAmount ? `₹${(selected as any).loanAmount}` : '-') : '-'}</span></div>
                           <div><span className="font-medium text-gray-800">EMI Tenure:</span> <span className="ml-1 text-gray-600">{selected && ('emiTenure' in selected) ? ((selected as any).emiTenure ? `${(selected as any).emiTenure} months` : '-') : '-'}</span></div>
                           <div><span className="font-medium text-gray-800">Start Date:</span> <span className="ml-1 text-gray-600">{selected && ('startDate' in selected) ? (selected as any).startDate || selected.joinDate || '-' : selected?.joinDate || '-'}</span></div>
                         </div>
@@ -594,7 +614,7 @@ const Customers = () => {
                             const emiRows = [];
                             for (let i = 0; i < tenure; i++) {
                               const dueDate = new Date(startDate);
-                              dueDate.setMonth(startDate.getMonth() + i);
+                              dueDate.setMonth(startDate.getMonth() + i + 1); // Start from next month
                               const dueDateStr = dueDate.toISOString().slice(0, 10);
                               const emi = emiHistory.find(e => e.due_date === dueDateStr);
                               emiRows.push(
@@ -602,28 +622,41 @@ const Customers = () => {
                                   <li key={emi.id} className="flex justify-between items-center text-sm py-1 border-b last:border-b-0">
                                     <span>{emi.due_date} - ₹{emi.amount} {emi.fine ? `(+₹${emi.fine} fine)` : ''}</span>
                                     <span className={`px-2 rounded-full font-medium ${emi.paid ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{emi.paid ? 'Paid' : 'Unpaid'}</span>
-                                    {!emi.paid && (
-                                      <span className="flex gap-1">
+                                    <span className="flex gap-1">
+                                      {!emi.paid && (
+                                        <>
+                                          <button
+                                            className="bg-green-100 text-green-700 p-1 rounded-full text-xs flex items-center justify-center"
+                                            title="Mark as Paid"
+                                            onClick={() => markAsPaid(emi.id)}
+                                          >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                            </svg>
+                                          </button>
+                                          <button
+                                            className="bg-red-100 text-red-700 p-1 rounded-full text-xs flex items-center justify-center"
+                                            title="Mark as Unpaid / Add Fine"
+                                            onClick={() => markAsUnpaid(emi.id)}
+                                          >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                          </button>
+                                        </>
+                                      )}
+                                      {emi.paid && (
                                         <button
-                                          className="bg-green-100 text-green-700 p-1 rounded-full text-xs flex items-center justify-center"
-                                          title="Mark as Paid"
-                                          onClick={() => markAsPaid(emi.id)}
-                                        >
-                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                          </svg>
-                                        </button>
-                                        <button
-                                          className="bg-red-100 text-red-700 p-1 rounded-full text-xs flex items-center justify-center"
-                                          title="Mark as Unpaid / Add Fine"
-                                          onClick={() => markAsUnpaid(emi.id)}
+                                          className="bg-yellow-100 text-yellow-700 p-1 rounded-full text-xs flex items-center justify-center"
+                                          title="Mark as Unpaid"
+                                          onClick={() => markEmiAsUnpaid(emi.id)}
                                         >
                                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                                           </svg>
                                         </button>
-                                      </span>
-                                    )}
+                                      )}
+                                    </span>
                                   </li>
                                 ) : (
                                   <li key={dueDateStr} className="flex justify-between items-center text-sm py-1 border-b last:border-b-0 text-gray-400">
@@ -700,9 +733,11 @@ const Customers = () => {
                 <input required className="border rounded px-3 py-2" placeholder="Primary Mobile IMEI Number" value={form.primaryMobileIMEI} onChange={e => setForm(f => ({ ...f, primaryMobileIMEI: e.target.value }))} />
                 <input required className="border rounded px-3 py-2" placeholder="Secondary Mobile Model" value={form.secondaryMobileModel} onChange={e => setForm(f => ({ ...f, secondaryMobileModel: e.target.value }))} />
                 <input required className="border rounded px-3 py-2" placeholder="Secondary Mobile IMEI Number" value={form.secondaryMobileIMEI} onChange={e => setForm(f => ({ ...f, secondaryMobileIMEI: e.target.value }))} />
-                <input required type="number" min="1" className="border rounded px-3 py-2" placeholder="Device Price (₹)" value={form.devicePrice} onChange={e => setForm(f => ({ ...f, devicePrice: e.target.value }))} />
+                <input required type="number" min="1" className="border rounded px-3 py-2" placeholder="Original Device Price (₹)" value={form.originalDevicePrice} onChange={e => setForm(f => ({ ...f, originalDevicePrice: e.target.value }))} />
+                <input required type="number" min="0" className="border rounded px-3 py-2" placeholder="Downpayment (₹)" value={form.downpayment} onChange={e => setForm(f => ({ ...f, downpayment: e.target.value }))} />
+                <input required type="number" min="1" className="border rounded px-3 py-2" placeholder="Loan Amount (₹)" value={form.loanAmount} onChange={e => setForm(f => ({ ...f, loanAmount: e.target.value }))} />
                 <input required type="number" min="1" className="border rounded px-3 py-2" placeholder="EMI Tenure (Months)" value={form.emiTenure} onChange={e => setForm(f => ({ ...f, emiTenure: e.target.value }))} />
-                <input readOnly className="border rounded px-3 py-2 bg-gray-100" placeholder="Monthly EMI Amount (₹)" value={form.devicePrice && form.emiTenure ? (parseFloat(form.devicePrice)/parseInt(form.emiTenure)).toFixed(2) : ''} />
+                <input readOnly className="border rounded px-3 py-2 bg-gray-100" placeholder="Monthly EMI Amount (₹)" value={form.loanAmount && form.emiTenure ? (parseFloat(form.loanAmount)/parseInt(form.emiTenure)).toFixed(2) : ''} />
                 <input required type="date" className="border rounded px-3 py-2" placeholder="Start Date" value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} />
                 <select required className="border rounded px-3 py-2" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
                   <option value="">Select EMI Status</option>
