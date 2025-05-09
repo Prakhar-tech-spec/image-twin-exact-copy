@@ -13,7 +13,8 @@ import {
   Frown,
   Clock,
   TrendingUp,
-  Bell
+  Bell,
+  Menu
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import RocketSVG from '../assets/rocket.svg';
@@ -85,6 +86,7 @@ const Customers = () => {
   const [emiDate, setEmiDate] = useState(new Date().toISOString().slice(0, 10));
   const [allEmis, setAllEmis] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     fetchCustomers();
@@ -105,6 +107,7 @@ const Customers = () => {
     const data = await getCustomers();
     setCustomerList(data);
     localStorage.setItem('customers', JSON.stringify(data));
+    return data;
   }
 
   async function fetchAllEmis() {
@@ -274,12 +277,18 @@ const Customers = () => {
     e.preventDefault();
     if (isEditMode) {
       await updateCustomer({ ...selected, ...form });
+      setShowAddModal(false);
+      setIsEditMode(false);
+      const updatedList = await fetchCustomers();
+      // Refresh selected with latest data from updatedList
+      const updated = updatedList.find(c => c.id === selected.id);
+      if (updated) setSelected(updated);
     } else {
       await addCustomer(form);
+      setShowAddModal(false);
+      setIsEditMode(false);
+      fetchCustomers();
     }
-    setShowAddModal(false);
-    setIsEditMode(false);
-    fetchCustomers();
   }
 
   function handleEditCustomer() {
@@ -336,375 +345,458 @@ const Customers = () => {
   }
 
   return (
-    <div className="flex h-screen bg-white">
-      {/* Sidebar */}
-      <div className="w-64 bg-black text-white flex flex-col fixed h-full">
-        <div className="p-5 flex items-center">
-          <span className="text-purple-500 text-2xl font-bold font-qurova tracking-wide">DueDate</span>
-        </div>
-        <div className="flex-1 px-3">
-          <div className="mt-8">
-            <NavItem icon={<LayoutDashboard size={20} />} text="Dashboard" active={location.pathname === "/"} />
-            <NavItem icon={<Users size={20} />} text="Customers" active={location.pathname === "/customers"} />
-            <NavItem icon={<CreditCard size={20} />} text="EMI" active={location.pathname === "/emi"} />
+    <>
+      <div className="flex h-screen bg-white">
+        {/* Sidebar for desktop */}
+        <div className="w-64 bg-black text-white flex flex-col fixed h-full hidden md:block">
+          <div className="p-5 flex items-center">
+            <span className="text-purple-500 text-2xl font-bold font-qurova tracking-wide">DueDate</span>
+          </div>
+          <div className="flex-1 px-3">
+            <div className="mt-8">
+              <NavItem icon={<LayoutDashboard size={20} />} text="Dashboard" active={location.pathname === "/"} />
+              <NavItem icon={<Users size={20} />} text="Customers" active={location.pathname === "/customers"} />
+              <NavItem icon={<CreditCard size={20} />} text="EMI" active={location.pathname === "/emi"} />
+            </div>
+          </div>
+          <div className="mt-auto mb-10">
+            <div className="bg-gradient-to-r from-[#a259e6] to-[#b97aff] rounded-3xl mx-3 p-6 text-center relative overflow-visible">
+              <div className="absolute left-1/2 -top-10 transform -translate-x-1/2 bg-white rounded-full border-4 border-black p-4 flex items-center justify-center" style={{width:'72px',height:'72px'}}>
+                <img src={RocketSVG} alt="Rocket Icon" className="w-10 h-10" />
+              </div>
+              <p className="text-sm mt-6 mb-2">Additional features to enhance your security.</p>
+              <button className="bg-white text-purple-700 px-6 py-2 rounded-full mt-2 flex items-center mx-auto">
+                Upgrade Pro
+                <ChevronRight size={16} className="ml-1" />
+              </button>
+            </div>
+          </div>
+          <div className="p-5">
+            <NavItem icon={<span className="w-5 h-5 flex items-center justify-center text-gray-400">⚙️</span>} text="Settings" active={location.pathname === "/settings"} />
           </div>
         </div>
-        <div className="mt-auto mb-10">
-          <div className="bg-gradient-to-r from-[#a259e6] to-[#b97aff] rounded-3xl mx-3 p-6 text-center relative overflow-visible">
-            <div className="absolute left-1/2 -top-10 transform -translate-x-1/2 bg-white rounded-full border-4 border-black p-4 flex items-center justify-center" style={{width:'72px',height:'72px'}}>
-              <img src={RocketSVG} alt="Rocket Icon" className="w-10 h-10" />
-            </div>
-            <p className="text-sm mt-6 mb-2">Additional features to enhance your security.</p>
-            <button className="bg-white text-purple-700 px-6 py-2 rounded-full mt-2 flex items-center mx-auto">
-              Upgrade Pro
-              <ChevronRight size={16} className="ml-1" />
-            </button>
-          </div>
-        </div>
-        <div className="p-5">
-          <NavItem icon={<span className="w-5 h-5 flex items-center justify-center text-gray-400">⚙️</span>} text="Settings" active={location.pathname === "/settings"} />
-        </div>
-      </div>
-      {/* Main content */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={location.pathname}
-          initial={{ opacity: 0, x: 40 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -40 }}
-          transition={{ duration: 0.35, ease: 'easeInOut' }}
-          className="flex-1 flex flex-col overflow-hidden ml-64"
-        >
-          {/* Header */}
-          <header className="bg-white border-b p-4 flex items-center justify-between">
-            <div>
-              <div className="text-gray-500">Welcome back, Anupam Stores👋🏻</div>
-              <h1 className="text-3xl">Customers</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 text-gray-400" size={20} />
-                <input 
-                  type="text" 
-                  placeholder="Search now" 
-                  className="pl-10 pr-4 py-2 border rounded-full w-72 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div className="p-2 rounded-full hover:bg-gray-100 cursor-pointer">
-                <Bell size={24} />
-              </div>
-              <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 overflow-hidden">
-                <img src="https://i.pravatar.cc/150?img=12" alt="User" className="h-full w-full object-cover" />
-              </div>
-            </div>
-          </header>
-          {/* Dashboard content */}
-          <div className="flex-1 overflow-auto p-6">
-            {/* Stats Grid */}
-            <div className="grid grid-cols-4 gap-4 mb-6">
-              <StatCard 
-                icon={<Users size={24} />} 
-                iconBg="bg-[#43936C]" 
-                cardBg="bg-[#EAF7F0]" 
-                title="Total Customers" 
-                value={customerList.length} 
-                description="90% of customers are regular clients." 
+        {/* Sidebar overlay for mobile */}
+        <AnimatePresence>
+          {sidebarOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex md:hidden"
+            >
+              {/* Overlay background */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-black bg-opacity-40"
+                onClick={() => setSidebarOpen(false)}
               />
-              <StatCard 
-                icon={<Smile size={24} />} 
-                iconBg="bg-[#8F5FE8]" 
-                cardBg="bg-[#F5F0FA]" 
-                title="Active Customers" 
-                value={customerList.filter(c => c.status === 'Active').length} 
-                description="Most customers are active and present." 
-              />
-              <StatCard 
-                icon={<Frown size={24} />} 
-                iconBg="bg-[#D97C29]" 
-                cardBg="bg-[#FFF6E9]" 
-                title="Inactive Customers" 
-                value={customerList.filter(c => c.status === 'Inactive').length} 
-                description="Some customers are currently inactive." 
-              />
-              <StatCard 
-                icon={<TrendingUp size={24} />} 
-                iconBg="bg-[#2563EB]" 
-                cardBg="bg-[#EDF4FF]" 
-                title="New Customers" 
-                value={customerList.filter(c => c.loyalty === 'New').length} 
-                description="Recently joined customers." 
-              />
-            </div>
-            {/* Table and Profile Side by Side */}
-            <div className="flex gap-6">
-              {/* Customer Table */}
-              <div className="flex-1">
-                <div className="bg-white rounded-3xl p-0 shadow border border-gray-200">
-                  <div className="flex flex-col gap-4 px-6 pt-6 pb-4">
-                    <div className="flex items-center gap-2 w-full">
-                      <h2 className="text-xl mr-4">Customers</h2>
-                      <input
-                        type="text"
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        placeholder="Search customers..."
-                        className="border rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
-                      />
-                      <input type="date" className="border rounded-full px-3 py-1 text-sm ml-2" />
-                      <button
-                        className="ml-auto bg-primary text-white rounded-full px-8 py-2 text-sm font-medium hover:bg-purple-700 transition flex items-center justify-center whitespace-nowrap"
-                        onClick={() => {
-                          setForm({
-                            name: "",
-                            primaryContact: "",
-                            alternateContact: "",
-                            idDocs: [],
-                            primaryMobileModel: "",
-                            primaryMobileIMEI: "",
-                            secondaryMobileModel: "",
-                            secondaryMobileIMEI: "",
-                            originalDevicePrice: "",
-                            downpayment: "",
-                            loanAmount: "",
-                            emiTenure: "",
-                            startDate: new Date().toISOString().slice(0, 10),
-                            status: "Active",
-                            accountNumber: "",
-                            ifscCode: "",
-                            customerPhoto: null
-                          });
-                          setIsEditMode(false);
-                          setShowAddModal(true);
-                        }}
-                      >
-                        Add Customer
-                      </button>
-                    </div>
+              {/* Sidebar panel */}
+              <motion.div
+                initial={{ x: -300 }}
+                animate={{ x: 0 }}
+                exit={{ x: -300 }}
+                transition={{ type: "spring", damping: 20 }}
+                className="relative w-64 bg-black text-white flex flex-col h-full z-50"
+              >
+                {/* Close button */}
+                <button
+                  className="absolute top-4 right-4 text-white text-2xl p-1 rounded-full bg-gray-800 hover:bg-gray-700"
+                  onClick={() => setSidebarOpen(false)}
+                  aria-label="Close sidebar"
+                >
+                  &times;
+                </button>
+                <div className="flex items-center justify-center h-20 border-b border-gray-800">
+                  <span className="text-purple-500 text-2xl font-bold font-qurova tracking-wide">DueDate</span>
+                </div>
+                <div className="flex-1 px-3">
+                  <div className="mt-8">
+                    <NavItem icon={<LayoutDashboard size={20} />} text="Dashboard" active={location.pathname === "/"} />
+                    <NavItem icon={<Users size={20} />} text="Customers" active={location.pathname === "/customers"} />
+                    <NavItem icon={<CreditCard size={20} />} text="EMI" active={location.pathname === "/emi"} />
                   </div>
-                  <table className="w-full text-left border-separate border-spacing-0">
-                    <thead>
-                      <tr className="text-gray-600 text-sm">
-                        <th className="px-6 pb-2 pt-2 font-medium">Customer</th>
-                        <th className="px-2 pb-2 pt-2 font-medium">Primary Number</th>
-                        <th className="px-2 pb-2 pt-2 font-medium">Next EMI Date</th>
-                        <th className="px-2 pb-2 pt-2 font-medium">Fine</th>
-                        <th className="px-2 pb-2 pt-2 font-medium">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredCustomers.map((c, i) => {
-                        // Find next unpaid EMI for this customer from allEmis
-                        const emis = allEmis.filter(e => e.customer_id === c.id && !e.paid);
-                        const nextEmi = emis.length > 0 ? emis.reduce((a, b) => new Date(a.due_date) < new Date(b.due_date) ? a : b) : null;
-                        return (
-                          <tr
-                            key={i}
-                            className={`cursor-pointer transition-colors ${selected?.name === c.name ? "bg-[#faf4fe]" : "hover:bg-gray-50"} border-t border-gray-200 last:border-b-0`}
-                            onClick={() => setSelected(c)}
-                            style={{ borderTop: i === 0 ? 'none' : undefined }}
-                          >
-                            <td className="px-6 py-3 flex items-center font-medium">
-                              <div className="w-8 h-8 rounded-full bg-gray-200 mr-2 flex-shrink-0 overflow-hidden">
-                                <img src={c.avatar} alt={c.name} className="w-full h-full object-cover" />
-                              </div>
-                              <span>{c.name}</span>
-                            </td>
-                            <td className="px-2 py-3 text-sm">{c.primaryContact || c.phone}</td>
-                            <td className="px-2 py-3 text-sm">
-                              {(() => {
-                                const emis = allEmis.filter(e => e.customer_id === c.id);
-                                if (emis.length === 0) return '-';
-                                const unpaidEmis = emis.filter(e => !e.paid);
-                                if (unpaidEmis.length === 0 && emis.length >= (parseInt(c.emiTenure) || 0)) return 'All Paid';
-                                const nextEmi = unpaidEmis.length > 0 ? unpaidEmis.reduce((a, b) => new Date(a.due_date) < new Date(b.due_date) ? a : b) : null;
-                                return nextEmi ? (
-                                  <span className={new Date(nextEmi.due_date) < new Date() ? "text-red-500 font-semibold" : ""}>
-                                    {nextEmi.due_date}
-                                  </span>
-                                ) : '-';
-                              })()}
-                            </td>
-                            <td className="px-2 py-3 text-sm">{nextEmi ? `₹${nextEmi.fine || 0}` : '-'}</td>
-                            <td className="px-2 py-3">
-                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[c.status] || "bg-gray-100 text-gray-600"}`}>{c.status}</span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                </div>
+                <div className="mt-auto mb-10">
+                  <div className="bg-gradient-to-r from-[#a259e6] to-[#b97aff] rounded-3xl mx-3 p-6 text-center relative overflow-visible">
+                    <div className="absolute left-1/2 -top-10 transform -translate-x-1/2 bg-white rounded-full border-4 border-black p-4 flex items-center justify-center" style={{width:'72px',height:'72px'}}>
+                      <img src={RocketSVG} alt="Rocket Icon" className="w-10 h-10" />
+                    </div>
+                    <p className="text-sm mt-6 mb-2">Additional features to enhance your security.</p>
+                    <button className="bg-white text-purple-700 px-6 py-2 rounded-full mt-2 flex items-center mx-auto">
+                      Upgrade Pro
+                      <ChevronRight size={16} className="ml-1" />
+                    </button>
+                  </div>
+                </div>
+                <div className="p-5">
+                  <NavItem icon={<span className="w-5 h-5 flex items-center justify-center text-gray-400">⚙️</span>} text="Settings" active={location.pathname === "/settings"} />
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {/* Main content */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -40 }}
+            transition={{ duration: 0.35, ease: 'easeInOut' }}
+            className="flex-1 flex flex-col overflow-hidden ml-0 md:ml-64"
+          >
+            {/* Header */}
+            <header className="bg-white border-b p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {/* Sidebar menu button for mobile */}
+                <button
+                  className="block md:hidden p-2 rounded-full bg-black text-white hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  onClick={() => setSidebarOpen(true)}
+                  aria-label="Open sidebar"
+                >
+                  <Menu size={24} />
+                </button>
+                <div className="text-gray-500">Welcome back, Anupam Stores👋🏻</div>
+                <h1 className="text-3xl">Customers</h1>
+              </div>
+              <div className="flex items-center space-x-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 text-gray-400" size={20} />
+                  <input 
+                    type="text" 
+                    placeholder="Search now" 
+                    className="pl-10 pr-4 py-2 border rounded-full w-72 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="p-2 rounded-full hover:bg-gray-100 cursor-pointer">
+                  <Bell size={24} />
+                </div>
+                <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 overflow-hidden">
+                  <img src="https://i.pravatar.cc/150?img=12" alt="User" className="h-full w-full object-cover" />
                 </div>
               </div>
-              {/* Profile Card */}
-              <div className="w-96">
-                {selected ? (
-                  <div className="bg-white rounded-3xl shadow p-0 border border-gray-200 overflow-hidden relative">
-                    {/* Status pill as dropdown at top right */}
-                    <div className="relative">
-                      <button
-                        className={`absolute top-6 right-6 px-3 py-1 rounded-full text-xs font-medium focus:outline-none ${statusColors[selected?.status] || "bg-gray-100 text-gray-600"}`}
-                        onClick={() => setShowStatusDropdown(v => !v)}
-                        type="button"
-                      >
-                        {selected?.status}
-                      </button>
-                      {showStatusDropdown && (
-                        <div className="absolute right-0 mt-2 w-32 bg-white border rounded shadow z-50">
-                          {statusOptions.filter(opt => opt !== selected?.status).map(opt => (
-                            <div
-                              key={opt}
-                              className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
-                              onClick={async () => {
-                                await updateCustomer({ ...selected, status: opt });
-                                setSelected({ ...selected, status: opt });
-                                fetchCustomers();
-                                setShowStatusDropdown(false);
-                              }}
+            </header>
+            {/* Dashboard content */}
+            <div className="flex-1 overflow-auto p-6">
+              {/* Stats Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                <StatCard 
+                  icon={<Users size={24} />} 
+                  iconBg="bg-[#43936C]" 
+                  cardBg="bg-[#EAF7F0]" 
+                  title="Total Customers" 
+                  value={customerList.length} 
+                  description="90% of customers are regular clients." 
+                />
+                <StatCard 
+                  icon={<Smile size={24} />} 
+                  iconBg="bg-[#8F5FE8]" 
+                  cardBg="bg-[#F5F0FA]" 
+                  title="Active Customers" 
+                  value={customerList.filter(c => c.status === 'Active').length} 
+                  description="Most customers are active and present." 
+                />
+                <StatCard 
+                  icon={<Frown size={24} />} 
+                  iconBg="bg-[#D97C29]" 
+                  cardBg="bg-[#FFF6E9]" 
+                  title="Inactive Customers" 
+                  value={customerList.filter(c => c.status === 'Inactive').length} 
+                  description="Some customers are currently inactive." 
+                />
+                <StatCard 
+                  icon={<TrendingUp size={24} />} 
+                  iconBg="bg-[#2563EB]" 
+                  cardBg="bg-[#EDF4FF]" 
+                  title="New Customers" 
+                  value={customerList.filter(c => c.loyalty === 'New').length} 
+                  description="Recently joined customers." 
+                />
+              </div>
+              {/* Table and Profile Side by Side */}
+              <div className="flex gap-6">
+                {/* Customer Table */}
+                <div className="flex-1">
+                  <div className="bg-white rounded-3xl p-0 shadow border border-gray-200">
+                    <div className="flex flex-col gap-4 px-6 pt-6 pb-4">
+                      <div className="flex items-center gap-2 w-full">
+                        <h2 className="text-xl mr-4">Customers</h2>
+                        <input
+                          type="text"
+                          value={search}
+                          onChange={e => setSearch(e.target.value)}
+                          placeholder="Search customers..."
+                          className="border rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
+                        />
+                        <input type="date" className="border rounded-full px-3 py-1 text-sm ml-2" />
+                        <button
+                          className="ml-auto bg-primary text-white rounded-full px-8 py-2 text-sm font-medium hover:bg-purple-700 transition flex items-center justify-center whitespace-nowrap"
+                          onClick={() => {
+                            setForm({
+                              name: "",
+                              primaryContact: "",
+                              alternateContact: "",
+                              idDocs: [],
+                              primaryMobileModel: "",
+                              primaryMobileIMEI: "",
+                              secondaryMobileModel: "",
+                              secondaryMobileIMEI: "",
+                              originalDevicePrice: "",
+                              downpayment: "",
+                              loanAmount: "",
+                              emiTenure: "",
+                              startDate: new Date().toISOString().slice(0, 10),
+                              status: "Active",
+                              accountNumber: "",
+                              ifscCode: "",
+                              customerPhoto: null
+                            });
+                            setIsEditMode(false);
+                            setShowAddModal(true);
+                          }}
+                        >
+                          Add Customer
+                        </button>
+                      </div>
+                    </div>
+                    <table className="w-full text-left border-separate border-spacing-0">
+                      <thead>
+                        <tr className="text-gray-600 text-sm">
+                          <th className="px-6 pb-2 pt-2 font-medium">Customer</th>
+                          <th className="px-2 pb-2 pt-2 font-medium">Primary Number</th>
+                          <th className="px-2 pb-2 pt-2 font-medium">Next EMI Date</th>
+                          <th className="px-2 pb-2 pt-2 font-medium">Fine</th>
+                          <th className="px-2 pb-2 pt-2 font-medium">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredCustomers.map((c, i) => {
+                          // Find next unpaid EMI for this customer from allEmis
+                          const emis = allEmis.filter(e => e.customer_id === c.id && !e.paid);
+                          const nextEmi = emis.length > 0 ? emis.reduce((a, b) => new Date(a.due_date) < new Date(b.due_date) ? a : b) : null;
+                          return (
+                            <tr
+                              key={i}
+                              className={`cursor-pointer transition-colors ${selected?.name === c.name ? "bg-[#faf4fe]" : "hover:bg-gray-50"} border-t border-gray-200 last:border-b-0`}
+                              onClick={() => setSelected(c)}
+                              style={{ borderTop: i === 0 ? 'none' : undefined }}
                             >
-                              {opt}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    {/* Profile header with gradient */}
-                    <div className="h-28 bg-gradient-to-tr from-[#f5e8ff] to-[#c7eaff] flex items-end justify-center">
-                      <div className="w-24 h-24 rounded-full bg-white shadow -mb-12 overflow-hidden border-4 border-white">
-                        {selected && selected.customerPhoto && (
-                          <img src={typeof selected.customerPhoto === 'string' ? selected.customerPhoto : URL.createObjectURL(selected.customerPhoto)} alt={selected?.name} className="w-full h-full object-cover" />
-                        )}
-                      </div>
-                    </div>
-                    <div className="pt-16 pb-6 px-6">
-                      {/* 1. Name */}
-                      <h3 className="text-xl font-semibold mb-1 text-center">{selected?.name}</h3>
-                      {/* 2. Profile */}
-                      <div className="text-gray-500 mb-2 text-center">Customer</div>
-                      {/* Profile details as a single horizontal line, no bold, smaller font */}
-                      <div className="flex flex-wrap gap-x-6 gap-y-2 mb-4 text-gray-600 text-sm items-center">
-                        <div><span className="font-medium text-gray-800">Primary Contact Number:</span> <span className="ml-1 text-gray-600">{selected && ('primaryContact' in selected) ? (selected as any).primaryContact || selected.phone || '-' : selected?.phone || '-'}</span></div>
-                        <div><span className="font-medium text-gray-800">Alternate Contact Number:</span> <span className="ml-1 text-gray-600">{selected && ('alternateContact' in selected) ? (selected as any).alternateContact || '-' : '-'}</span></div>
-                        <div><span className="font-medium text-gray-800">Primary Mobile Model:</span> <span className="ml-1 text-gray-600">{selected && ('primaryMobileModel' in selected) ? (selected as any).primaryMobileModel || '-' : '-'}</span></div>
-                        <div><span className="font-medium text-gray-800">Primary Mobile IMEI Number:</span> <span className="ml-1 text-gray-600">{selected && ('primaryMobileIMEI' in selected) ? (selected as any).primaryMobileIMEI || '-' : '-'}</span></div>
-                        <div><span className="font-medium text-gray-800">Secondary Mobile Model:</span> <span className="ml-1 text-gray-600">{selected && ('secondaryMobileModel' in selected) ? (selected as any).secondaryMobileModel || '-' : '-'}</span></div>
-                        <div><span className="font-medium text-gray-800">Secondary Mobile IMEI Number:</span> <span className="ml-1 text-gray-600">{selected && ('secondaryMobileIMEI' in selected) ? (selected as any).secondaryMobileIMEI || '-' : '-'}</span></div>
-                        <div><span className="font-medium text-gray-800">Original Device Price:</span> <span className="ml-1 text-gray-600">{selected && ('originalDevicePrice' in selected) ? ((selected as any).originalDevicePrice ? `₹${(selected as any).originalDevicePrice}` : '-') : '-'}</span></div>
-                        <div><span className="font-medium text-gray-800">Downpayment:</span> <span className="ml-1 text-gray-600">{selected && ('downpayment' in selected) ? ((selected as any).downpayment ? `₹${(selected as any).downpayment}` : '-') : '-'}</span></div>
-                        <div><span className="font-medium text-gray-800">Loan Amount:</span> <span className="ml-1 text-gray-600">{selected && ('loanAmount' in selected) ? ((selected as any).loanAmount ? `₹${(selected as any).loanAmount}` : '-') : '-'}</span></div>
-                        <div><span className="font-medium text-gray-800">EMI Tenure:</span> <span className="ml-1 text-gray-600">{selected && ('emiTenure' in selected) ? ((selected as any).emiTenure ? `${(selected as any).emiTenure} months` : '-') : '-'}</span></div>
-                        <div><span className="font-medium text-gray-800">Start Date:</span> <span className="ml-1 text-gray-600">{selected && ('startDate' in selected) ? (selected as any).startDate || selected.joinDate || '-' : selected?.joinDate || '-'}</span></div>
-                        <div className="flex flex-col gap-y-2 min-w-[140px]">
-                          <div><span className="font-medium text-gray-800">Account Number:</span> <span className="ml-1 text-gray-600">{selected && ('accountNumber' in selected) ? (selected as any).accountNumber || '-' : '-'}</span></div>
-                          <div><span className="font-medium text-gray-800">IFSC Code:</span> <span className="ml-1 text-gray-600">{selected && ('ifscCode' in selected) ? (selected as any).ifscCode || '-' : '-'}</span></div>
-                        </div>
-                      </div>
-                      {/* 14. View Documents Button */}
-                      <button
-                        className="w-full py-2 rounded-full bg-gradient-to-r from-purple-600 to-pink-500 text-white font-medium mb-4 hover:from-purple-700 hover:to-pink-600 transition"
-                        onClick={() => setShowDocsModal(true)}
-                      >
-                        View Documents
-                      </button>
-                      {/* Action Buttons */}
-                      <div className="flex gap-3 mb-4">
-                        {/* Edit Button */}
-                        <button className="flex-1 flex items-center justify-center bg-white border border-black rounded-full h-12 font-medium text-gray-700 hover:bg-gray-50 transition" title="Edit" onClick={handleEditCustomer}>
-                          <img src={IconSVG} alt="Edit" className="h-5 w-5" />
-                        </button>
-                        {/* Delete Button */}
-                        <button className="flex-1 flex items-center justify-center gap-2 bg-white border border-black rounded-full h-12 font-medium hover:bg-gray-50 transition" title="Delete" onClick={() => setShowDeleteModal(true)}>
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2h6" /></svg>
-                        </button>
-                      </div>
-                      <details className="rounded-xl border px-4 py-2 cursor-pointer">
-                        <summary className="font-medium text-gray-700 flex items-center justify-between cursor-pointer select-none">
-                          EMI History <span className="ml-2">▼</span>
-                        </summary>
-                        <ul className="mt-2">
-                          {(() => {
-                            const tenure = parseInt(selected?.emiTenure || (selected as any)?.emiTenure || 0);
-                            const startDate = new Date((selected?.startDate || selected?.joinDate));
-                            const emiRows = [];
-                            for (let i = 0; i < tenure; i++) {
-                              const dueDate = new Date(startDate);
-                              dueDate.setMonth(startDate.getMonth() + i + 1); // Start from next month
-                              const dueDateStr = dueDate.toISOString().slice(0, 10);
-                              const emi = emiHistory.find(e => e.due_date === dueDateStr);
-                              emiRows.push(
-                                emi ? (
-                                  <li key={emi.id} className="flex justify-between items-center text-sm py-1 border-b last:border-b-0">
-                                    <span>{emi.due_date} - ₹{emi.amount} {emi.fine ? `(+₹${emi.fine} fine)` : ''}</span>
-                                    <span className={`px-2 rounded-full font-medium ${emi.paid ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{emi.paid ? 'Paid' : 'Unpaid'}</span>
-                                    <span className="flex gap-1">
-                                      {!emi.paid && (
-                                        <>
-                                          <button
-                                            className="bg-green-100 text-green-700 p-1 rounded-full text-xs flex items-center justify-center"
-                                            title="Mark as Paid"
-                                            onClick={() => markAsPaid(emi.id)}
-                                          >
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                            </svg>
-                                          </button>
-                                          <button
-                                            className="bg-red-100 text-red-700 p-1 rounded-full text-xs flex items-center justify-center"
-                                            title="Mark as Unpaid / Add Fine"
-                                            onClick={() => markAsUnpaid(emi.id)}
-                                          >
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                            </svg>
-                                          </button>
-                                        </>
-                                      )}
-                                      {emi.paid && (
-                                        <button
-                                          className="bg-yellow-100 text-yellow-700 p-1 rounded-full text-xs flex items-center justify-center"
-                                          title="Mark as Unpaid"
-                                          onClick={() => markEmiAsUnpaid(emi.id)}
-                                        >
-                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                          </svg>
-                                        </button>
-                                      )}
+                              <td className="px-6 py-3 flex items-center font-medium">
+                                <div className="w-8 h-8 rounded-full bg-gray-200 mr-2 flex-shrink-0 overflow-hidden">
+                                  <img src={c.avatar} alt={c.name} className="w-full h-full object-cover" />
+                                </div>
+                                <span>{c.name}</span>
+                              </td>
+                              <td className="px-2 py-3 text-sm">{c.primaryContact || c.phone}</td>
+                              <td className="px-2 py-3 text-sm">
+                                {(() => {
+                                  const emis = allEmis.filter(e => e.customer_id === c.id);
+                                  if (emis.length === 0) return '-';
+                                  const unpaidEmis = emis.filter(e => !e.paid);
+                                  if (unpaidEmis.length === 0 && emis.length >= (parseInt(c.emiTenure) || 0)) return 'All Paid';
+                                  const nextEmi = unpaidEmis.length > 0 ? unpaidEmis.reduce((a, b) => new Date(a.due_date) < new Date(b.due_date) ? a : b) : null;
+                                  return nextEmi ? (
+                                    <span className={new Date(nextEmi.due_date) < new Date() ? "text-red-500 font-semibold" : ""}>
+                                      {nextEmi.due_date}
                                     </span>
-                                  </li>
-                                ) : (
-                                  <li key={dueDateStr} className="flex justify-between items-center text-sm py-1 border-b last:border-b-0 text-gray-400">
-                                    <span>{dueDateStr} - ₹-</span>
-                                    <span className="px-2 rounded-full font-medium bg-gray-100 text-gray-400">-</span>
-                                  </li>
-                                )
-                              );
-                            }
-                            return emiRows;
-                          })()}
-                        </ul>
-                      </details>
-                      {selected && emiHistory.length > 0 && (
-                        <div className="mt-4 p-4 rounded-xl bg-yellow-50 border border-yellow-300 flex flex-col items-center">
-                          <div className="text-lg font-semibold text-yellow-800 mb-1">Due EMI</div>
-                          <div className="text-2xl font-bold text-yellow-900">
-                            ₹{emiHistory.filter(e => !e.paid).reduce((sum, e) => sum + (parseFloat(e.amount) || 0) + (parseFloat(e.fine) || 0), 0)}
-                          </div>
-                          <div className="text-xs text-yellow-700 mt-1">Total unpaid EMI amount (including fines)</div>
-                        </div>
-                      )}
-                    </div>
+                                  ) : '-';
+                                })()}
+                              </td>
+                              <td className="px-2 py-3 text-sm">{nextEmi ? `₹${nextEmi.fine || 0}` : '-'}</td>
+                              <td className="px-2 py-3">
+                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[c.status] || "bg-gray-100 text-gray-600"}`}>{c.status}</span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
-                ) : (
-                  <div className="bg-white rounded-3xl shadow p-8 border border-gray-200 flex flex-col items-center justify-center h-full min-h-[400px] text-gray-400">
-                    <span className="text-4xl mb-4">👤</span>
-                    <span className="text-lg">No customer selected</span>
-                    <span className="text-sm mt-2">Select a customer from the table or add a new customer.</span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      </div>
+      {/* Customer Profile Modal */}
+      <AnimatePresence>
+        {selected && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50"
+          >
+            <div className="bg-white rounded-3xl shadow p-0 border border-gray-200 overflow-hidden relative w-full max-w-lg mx-auto">
+              {/* Close button */}
+              <button
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-3xl z-10"
+                onClick={() => setSelected(null)}
+                aria-label="Close profile"
+              >
+                &times;
+              </button>
+              {/* ...profile card content (copy from previous profile card)... */}
+              {/* Status pill as dropdown at top right */}
+              <div className="relative">
+                <button
+                  className={`absolute top-6 right-16 px-3 py-1 rounded-full text-xs font-medium focus:outline-none ${statusColors[selected?.status] || "bg-gray-100 text-gray-600"}`}
+                  onClick={() => setShowStatusDropdown(v => !v)}
+                  type="button"
+                >
+                  {selected?.status}
+                </button>
+                {showStatusDropdown && (
+                  <div className="absolute right-0 mt-2 w-32 bg-white border rounded shadow z-50">
+                    {statusOptions.filter(opt => opt !== selected?.status).map(opt => (
+                      <div
+                        key={opt}
+                        className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                        onClick={async () => {
+                          await updateCustomer({ ...selected, status: opt });
+                          setSelected({ ...selected, status: opt });
+                          fetchCustomers();
+                          setShowStatusDropdown(false);
+                        }}
+                      >
+                        {opt}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {/* Profile header with gradient */}
+              <div className="h-28 bg-gradient-to-tr from-[#f5e8ff] to-[#c7eaff] flex items-end justify-center">
+                <div className="w-24 h-24 rounded-full bg-white shadow -mb-12 overflow-hidden border-4 border-white">
+                  {selected && selected.customerPhoto && (
+                    <img src={typeof selected.customerPhoto === 'string' ? selected.customerPhoto : URL.createObjectURL(selected.customerPhoto)} alt={selected?.name} className="w-full h-full object-cover" />
+                  )}
+                </div>
+              </div>
+              <div className="pt-16 pb-6 px-6">
+                {/* 1. Name */}
+                <h3 className="text-xl font-semibold mb-1 text-center">{selected?.name}</h3>
+                {/* 2. Profile */}
+                <div className="text-gray-500 mb-2 text-center">Customer</div>
+                {/* Profile details as a single horizontal line, no bold, smaller font */}
+                <div className="flex flex-wrap gap-x-6 gap-y-2 mb-4 text-gray-600 text-sm items-center">
+                  <div><span className="font-medium text-gray-800">Primary Contact Number:</span> <span className="ml-1 text-gray-600">{selected && ('primaryContact' in selected) ? (selected as any).primaryContact || selected.phone || '-' : selected?.phone || '-'}</span></div>
+                  <div><span className="font-medium text-gray-800">Alternate Contact Number:</span> <span className="ml-1 text-gray-600">{selected && ('alternateContact' in selected) ? (selected as any).alternateContact || '-' : '-'}</span></div>
+                  <div><span className="font-medium text-gray-800">Primary Mobile Model:</span> <span className="ml-1 text-gray-600">{selected && ('primaryMobileModel' in selected) ? (selected as any).primaryMobileModel || '-' : '-'}</span></div>
+                  <div><span className="font-medium text-gray-800">Primary Mobile IMEI Number:</span> <span className="ml-1 text-gray-600">{selected && ('primaryMobileIMEI' in selected) ? (selected as any).primaryMobileIMEI || '-' : '-'}</span></div>
+                  <div><span className="font-medium text-gray-800">Secondary Mobile Model:</span> <span className="ml-1 text-gray-600">{selected && ('secondaryMobileModel' in selected) ? (selected as any).secondaryMobileModel || '-' : '-'}</span></div>
+                  <div><span className="font-medium text-gray-800">Secondary Mobile IMEI Number:</span> <span className="ml-1 text-gray-600">{selected && ('secondaryMobileIMEI' in selected) ? (selected as any).secondaryMobileIMEI || '-' : '-'}</span></div>
+                  <div><span className="font-medium text-gray-800">Original Device Price:</span> <span className="ml-1 text-gray-600">{selected && ('originalDevicePrice' in selected) ? ((selected as any).originalDevicePrice ? `₹${(selected as any).originalDevicePrice}` : '-') : '-'}</span></div>
+                  <div><span className="font-medium text-gray-800">Downpayment:</span> <span className="ml-1 text-gray-600">{selected && ('downpayment' in selected) ? ((selected as any).downpayment ? `₹${(selected as any).downpayment}` : '-') : '-'}</span></div>
+                  <div><span className="font-medium text-gray-800">Loan Amount:</span> <span className="ml-1 text-gray-600">{selected && ('loanAmount' in selected) ? ((selected as any).loanAmount ? `₹${(selected as any).loanAmount}` : '-') : '-'}</span></div>
+                  <div><span className="font-medium text-gray-800">EMI Tenure:</span> <span className="ml-1 text-gray-600">{selected && ('emiTenure' in selected) ? ((selected as any).emiTenure ? `${(selected as any).emiTenure} months` : '-') : '-'}</span></div>
+                  <div><span className="font-medium text-gray-800">Start Date:</span> <span className="ml-1 text-gray-600">{selected && ('startDate' in selected) ? (selected as any).startDate || selected.joinDate || '-' : selected?.joinDate || '-'}</span></div>
+                  <div className="flex flex-col gap-y-2 min-w-[140px]">
+                    <div><span className="font-medium text-gray-800">Account Number:</span> <span className="ml-1 text-gray-600">{selected && ('accountNumber' in selected) ? (selected as any).accountNumber || '-' : '-'}</span></div>
+                    <div><span className="font-medium text-gray-800">IFSC Code:</span> <span className="ml-1 text-gray-600">{selected && ('ifscCode' in selected) ? (selected as any).ifscCode || '-' : '-'}</span></div>
+                  </div>
+                </div>
+                {/* 14. View Documents Button */}
+                <button
+                  className="w-full py-2 rounded-full bg-gradient-to-r from-purple-600 to-pink-500 text-white font-medium mb-4 hover:from-purple-700 hover:to-pink-600 transition"
+                  onClick={() => setShowDocsModal(true)}
+                >
+                  View Documents
+                </button>
+                {/* Action Buttons */}
+                <div className="flex gap-3 mb-4">
+                  {/* Edit Button */}
+                  <button className="flex-1 flex items-center justify-center bg-white border border-black rounded-full h-12 font-medium text-gray-700 hover:bg-gray-50 transition" title="Edit" onClick={handleEditCustomer}>
+                    <img src={IconSVG} alt="Edit" className="h-5 w-5" />
+                  </button>
+                  {/* Delete Button */}
+                  <button className="flex-1 flex items-center justify-center gap-2 bg-white border border-black rounded-full h-12 font-medium hover:bg-gray-50 transition" title="Delete" onClick={() => setShowDeleteModal(true)}>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2h6" /></svg>
+                  </button>
+                </div>
+                <details className="rounded-xl border px-4 py-2 cursor-pointer">
+                  <summary className="font-medium text-gray-700 flex items-center justify-between cursor-pointer select-none">
+                    EMI History <span className="ml-2">▼</span>
+                  </summary>
+                  <ul className="mt-2">
+                    {(() => {
+                      const tenure = parseInt(selected?.emiTenure || (selected as any)?.emiTenure || 0);
+                      const startDate = new Date((selected?.startDate || selected?.joinDate));
+                      const emiRows = [];
+                      for (let i = 0; i < tenure; i++) {
+                        const dueDate = new Date(startDate);
+                        dueDate.setMonth(startDate.getMonth() + i + 1); // Start from next month
+                        const dueDateStr = dueDate.toISOString().slice(0, 10);
+                        const emi = emiHistory.find(e => e.due_date === dueDateStr);
+                        emiRows.push(
+                          emi ? (
+                            <li key={emi.id} className="flex justify-between items-center text-sm py-1 border-b last:border-b-0">
+                              <span>{emi.due_date} - ₹{emi.amount} {emi.fine ? `(+₹${emi.fine} fine)` : ''}</span>
+                              <span className={`px-2 rounded-full font-medium ${emi.paid ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{emi.paid ? 'Paid' : 'Unpaid'}</span>
+                              <span className="flex gap-1">
+                                {!emi.paid && (
+                                  <>
+                                    <button
+                                      className="bg-green-100 text-green-700 p-1 rounded-full text-xs flex items-center justify-center"
+                                      title="Mark as Paid"
+                                      onClick={() => markAsPaid(emi.id)}
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    </button>
+                                    <button
+                                      className="bg-red-100 text-red-700 p-1 rounded-full text-xs flex items-center justify-center"
+                                      title="Mark as Unpaid / Add Fine"
+                                      onClick={() => markAsUnpaid(emi.id)}
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                      </svg>
+                                    </button>
+                                  </>
+                                )}
+                                {emi.paid && (
+                                  <button
+                                    className="bg-yellow-100 text-yellow-700 p-1 rounded-full text-xs flex items-center justify-center"
+                                    title="Mark as Unpaid"
+                                    onClick={() => markEmiAsUnpaid(emi.id)}
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                  </button>
+                                )}
+                              </span>
+                            </li>
+                          ) : (
+                            <li key={dueDateStr} className="flex justify-between items-center text-sm py-1 border-b last:border-b-0 text-gray-400">
+                              <span>{dueDateStr} - ₹-</span>
+                              <span className="px-2 rounded-full font-medium bg-gray-100 text-gray-400">-</span>
+                            </li>
+                          )
+                        );
+                      }
+                      return emiRows;
+                    })()}
+                  </ul>
+                </details>
+                {selected && emiHistory.length > 0 && (
+                  <div className="mt-4 p-4 rounded-xl bg-yellow-50 border border-yellow-300 flex flex-col items-center">
+                    <div className="text-lg font-semibold text-yellow-800 mb-1">Due EMI</div>
+                    <div className="text-2xl font-bold text-yellow-900">
+                      ₹{emiHistory.filter(e => !e.paid).reduce((sum, e) => sum + (parseFloat(e.amount) || 0) + (parseFloat(e.fine) || 0), 0)}
+                    </div>
+                    <div className="text-xs text-yellow-700 mt-1">Total unpaid EMI amount (including fines)</div>
                   </div>
                 )}
               </div>
             </div>
-          </div>
-        </motion.div>
+          </motion.div>
+        )}
       </AnimatePresence>
       {/* Add Customer Modal */}
       <AnimatePresence>
@@ -714,9 +806,9 @@ const Customers = () => {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ duration: 0.25 }}
-            className="fixed inset-0 flex items-center justify-center z-50"
+            className="fixed inset-0 flex items-center justify-center z-50 px-2"
           >
-            <div className="bg-white rounded-xl p-10 shadow-xl w-full max-w-2xl relative">
+            <div className="bg-white rounded-xl p-4 sm:p-8 md:p-10 shadow-xl w-full max-w-lg md:max-w-2xl relative max-h-[90vh] overflow-y-auto">
               <button type="button" className="absolute top-6 right-6 text-gray-400 hover:text-gray-700 text-3xl focus:outline-none" onClick={() => setShowAddModal(false)} aria-label="Close">
                 &times;
               </button>
@@ -787,8 +879,8 @@ const Customers = () => {
                   </div>
                 </div>
               </div>
-              <div className="flex gap-2 mt-2 col-span-2">
-                <button type="submit" className="flex-1 py-2 rounded bg-primary text-white hover:bg-purple-700" onClick={handleAddCustomer}>Add Customer</button>
+              <div className="flex flex-col md:flex-row gap-2 mt-2 col-span-2 w-full">
+                <button type="submit" className="w-full md:flex-1 py-2 rounded bg-primary text-white hover:bg-purple-700" onClick={handleAddCustomer}>Add Customer</button>
               </div>
             </div>
           </motion.div>
@@ -957,7 +1049,7 @@ const Customers = () => {
           </div>
         </motion.div>
       )}
-    </div>
+    </>
   );
 };
 

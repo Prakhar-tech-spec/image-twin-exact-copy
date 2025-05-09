@@ -10,7 +10,8 @@ import {
   ChevronRight,
   MoreHorizontal,
   Rocket,
-  LayoutDashboard
+  LayoutDashboard,
+  Menu
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -37,6 +38,7 @@ const Index = () => {
   const [customerList, setCustomerList] = React.useState([]);
   const [upcomingEmiDetails, setUpcomingEmiDetails] = React.useState([]);
   const [emisDueDetails, setEmisDueDetails] = React.useState([]);
+  const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
   // Poll notifications every 60s
   React.useEffect(() => {
@@ -335,8 +337,8 @@ const Index = () => {
 
   return (
     <div className="flex h-screen bg-white">
-      {/* Sidebar */}
-      <div className="w-64 bg-black text-white flex flex-col fixed h-full">
+      {/* Sidebar for desktop */}
+      <div className="w-64 bg-black text-white flex flex-col fixed h-full hidden md:block">
         <div className="p-5 flex items-center">
           <span className="text-purple-500 text-2xl font-bold font-qurova tracking-wide">DueDate</span>
         </div>
@@ -368,6 +370,68 @@ const Index = () => {
           <NavItem icon={<span className="w-5 h-5 flex items-center justify-center text-gray-400">⚙️</span>} text="Settings" active={location.pathname === "/settings"} />
         </div>
       </div>
+      {/* Sidebar overlay for mobile */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex md:hidden"
+          >
+            {/* Overlay background */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black bg-opacity-40"
+              onClick={() => setSidebarOpen(false)}
+            />
+            {/* Sidebar panel */}
+            <motion.div
+              initial={{ x: -300 }}
+              animate={{ x: 0 }}
+              exit={{ x: -300 }}
+              transition={{ type: "spring", damping: 20 }}
+              className="relative w-64 bg-black text-white flex flex-col h-full z-50"
+            >
+              {/* Close button */}
+              <button
+                className="absolute top-4 right-4 text-white text-2xl p-1 rounded-full bg-gray-800 hover:bg-gray-700"
+                onClick={() => setSidebarOpen(false)}
+                aria-label="Close sidebar"
+              >
+                &times;
+              </button>
+              <div className="flex items-center justify-center h-20 border-b border-gray-800">
+                <span className="text-purple-500 text-2xl font-bold font-qurova tracking-wide">DueDate</span>
+              </div>
+              <div className="flex-1 px-3">
+                <div className="mt-8">
+                  <NavItem icon={<LayoutDashboard size={20} />} text="Dashboard" active={location.pathname === "/"} />
+                  <NavItem icon={<Users size={20} />} text="Customers" active={location.pathname === "/customers"} />
+                  <NavItem icon={<CreditCard size={20} />} text="EMI" active={location.pathname === "/emi"} />
+                </div>
+              </div>
+              <div className="mt-auto mb-10">
+                <div className="bg-gradient-to-r from-[#a259e6] to-[#b97aff] rounded-3xl mx-3 p-6 text-center relative overflow-visible">
+                  <div className="absolute left-1/2 -top-10 transform -translate-x-1/2 bg-white rounded-full border-4 border-black p-4 flex items-center justify-center" style={{width:'72px',height:'72px'}}>
+                    <img src={RocketSVG} alt="Rocket Icon" className="w-10 h-10" />
+                  </div>
+                  <p className="text-sm mt-6 mb-2">Additional features to enhance your security.</p>
+                  <button className="bg-white text-purple-700 px-6 py-2 rounded-full mt-2 flex items-center mx-auto">
+                    Upgrade Pro
+                    <ChevronRight size={16} className="ml-1" />
+                  </button>
+                </div>
+              </div>
+              <div className="p-5">
+                <NavItem icon={<span className="w-5 h-5 flex items-center justify-center text-gray-400">⚙️</span>} text="Settings" active={location.pathname === "/settings"} />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       
       {/* Main content */}
       <AnimatePresence mode="wait">
@@ -377,11 +441,19 @@ const Index = () => {
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -40 }}
           transition={{ duration: 0.35, ease: 'easeInOut' }}
-          className="flex-1 flex flex-col overflow-hidden ml-64"
+          className="flex-1 flex flex-col overflow-hidden ml-0 md:ml-64"
         >
           {/* Header */}
           <header className="bg-white border-b p-4 flex items-center justify-between">
-            <div>
+            <div className="flex items-center gap-3">
+              {/* Sidebar menu button for mobile */}
+              <button
+                className="block md:hidden p-2 rounded-full bg-black text-white hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                onClick={() => setSidebarOpen(true)}
+                aria-label="Open sidebar"
+              >
+                <Menu size={24} />
+              </button>
               <div className="text-gray-500">Welcome back, Anupam Stores👋🏻</div>
               <h1 className="text-3xl">Dashboard</h1>
             </div>
@@ -437,7 +509,7 @@ const Index = () => {
           {/* Dashboard content */}
           <div className="flex-1 overflow-auto p-6" ref={dashboardRef}>
             {/* Stats Grid */}
-            <div className="grid grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <StatCard 
                 icon={<Users size={24} />} 
                 iconBg="bg-[#43936C]" 
@@ -522,26 +594,28 @@ const Index = () => {
                   {newCustomers.length === 0 ? (
                     <div className="text-gray-400 text-center py-8">No new customers yet.</div>
                   ) : (
-                    <table className="w-full text-left border-separate border-spacing-0">
-                      <thead>
-                        <tr className="text-gray-600 text-sm">
-                          <th className="px-4 pb-2 pt-2 font-medium">Name</th>
-                          <th className="px-2 pb-2 pt-2 font-medium">Primary Contact</th>
-                          <th className="px-2 pb-2 pt-2 font-medium">Status</th>
-                          <th className="px-2 pb-2 pt-2 font-medium">Start Date</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {newCustomers.map((c, i) => (
-                          <tr key={i} className="border-t border-gray-200 last:border-b-0">
-                            <td className="px-4 py-3">{c.name}</td>
-                            <td className="px-2 py-3">{c.primaryContact || c.phone}</td>
-                            <td className="px-2 py-3">{c.status}</td>
-                            <td className="px-2 py-3">{c.startDate || c.joinDate}</td>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-separate border-spacing-0">
+                        <thead>
+                          <tr className="text-gray-600 text-sm">
+                            <th className="px-4 pb-2 pt-2 font-medium">Name</th>
+                            <th className="px-2 pb-2 pt-2 font-medium">Primary Contact</th>
+                            <th className="px-2 pb-2 pt-2 font-medium">Status</th>
+                            <th className="px-2 pb-2 pt-2 font-medium">Start Date</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {newCustomers.map((c, i) => (
+                            <tr key={i} className="border-t border-gray-200 last:border-b-0">
+                              <td className="px-4 py-3">{c.name}</td>
+                              <td className="px-2 py-3">{c.primaryContact || c.phone}</td>
+                              <td className="px-2 py-3">{c.status}</td>
+                              <td className="px-2 py-3">{c.startDate || c.joinDate}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   )}
                 </div>
               </div>
