@@ -75,7 +75,10 @@ const Customers = () => {
     loanAmount: "",
     emiTenure: "",
     startDate: new Date().toISOString().slice(0, 10),
-    status: "Active"
+    status: "Active",
+    accountNumber: "",
+    ifscCode: "",
+    customerPhoto: null
   });
   const [warning, setWarning] = useState("");
   const [emiPaid, setEmiPaid] = useState(null);
@@ -296,6 +299,9 @@ const Customers = () => {
       emiTenure: (selected as any).emiTenure || '',
       startDate: (selected as any).startDate || selected.joinDate || new Date().toISOString().slice(0, 10),
       status: selected.status || 'Active',
+      accountNumber: (selected as any).accountNumber || '',
+      ifscCode: (selected as any).ifscCode || '',
+      customerPhoto: (selected as any).customerPhoto || null
     });
     setIsEditMode(true);
     setShowAddModal(true);
@@ -462,7 +468,10 @@ const Customers = () => {
                             loanAmount: "",
                             emiTenure: "",
                             startDate: new Date().toISOString().slice(0, 10),
-                            status: "Active"
+                            status: "Active",
+                            accountNumber: "",
+                            ifscCode: "",
+                            customerPhoto: null
                           });
                           setIsEditMode(false);
                           setShowAddModal(true);
@@ -561,7 +570,9 @@ const Customers = () => {
                     {/* Profile header with gradient */}
                     <div className="h-28 bg-gradient-to-tr from-[#f5e8ff] to-[#c7eaff] flex items-end justify-center">
                       <div className="w-24 h-24 rounded-full bg-white shadow -mb-12 overflow-hidden border-4 border-white">
-                        <img src={selected?.avatar} alt={selected?.name} className="w-full h-full object-cover" />
+                        {selected && selected.customerPhoto && (
+                          <img src={typeof selected.customerPhoto === 'string' ? selected.customerPhoto : URL.createObjectURL(selected.customerPhoto)} alt={selected?.name} className="w-full h-full object-cover" />
+                        )}
                       </div>
                     </div>
                     <div className="pt-16 pb-6 px-6">
@@ -577,12 +588,14 @@ const Customers = () => {
                         <div><span className="font-medium text-gray-800">Primary Mobile IMEI Number:</span> <span className="ml-1 text-gray-600">{selected && ('primaryMobileIMEI' in selected) ? (selected as any).primaryMobileIMEI || '-' : '-'}</span></div>
                         <div><span className="font-medium text-gray-800">Secondary Mobile Model:</span> <span className="ml-1 text-gray-600">{selected && ('secondaryMobileModel' in selected) ? (selected as any).secondaryMobileModel || '-' : '-'}</span></div>
                         <div><span className="font-medium text-gray-800">Secondary Mobile IMEI Number:</span> <span className="ml-1 text-gray-600">{selected && ('secondaryMobileIMEI' in selected) ? (selected as any).secondaryMobileIMEI || '-' : '-'}</span></div>
+                        <div><span className="font-medium text-gray-800">Original Device Price:</span> <span className="ml-1 text-gray-600">{selected && ('originalDevicePrice' in selected) ? ((selected as any).originalDevicePrice ? `₹${(selected as any).originalDevicePrice}` : '-') : '-'}</span></div>
+                        <div><span className="font-medium text-gray-800">Downpayment:</span> <span className="ml-1 text-gray-600">{selected && ('downpayment' in selected) ? ((selected as any).downpayment ? `₹${(selected as any).downpayment}` : '-') : '-'}</span></div>
+                        <div><span className="font-medium text-gray-800">Loan Amount:</span> <span className="ml-1 text-gray-600">{selected && ('loanAmount' in selected) ? ((selected as any).loanAmount ? `₹${(selected as any).loanAmount}` : '-') : '-'}</span></div>
+                        <div><span className="font-medium text-gray-800">EMI Tenure:</span> <span className="ml-1 text-gray-600">{selected && ('emiTenure' in selected) ? ((selected as any).emiTenure ? `${(selected as any).emiTenure} months` : '-') : '-'}</span></div>
+                        <div><span className="font-medium text-gray-800">Start Date:</span> <span className="ml-1 text-gray-600">{selected && ('startDate' in selected) ? (selected as any).startDate || selected.joinDate || '-' : selected?.joinDate || '-'}</span></div>
                         <div className="flex flex-col gap-y-2 min-w-[140px]">
-                          <div><span className="font-medium text-gray-800">Original Device Price:</span> <span className="ml-1 text-gray-600">{selected && ('originalDevicePrice' in selected) ? ((selected as any).originalDevicePrice ? `₹${(selected as any).originalDevicePrice}` : '-') : '-'}</span></div>
-                          <div><span className="font-medium text-gray-800">Downpayment:</span> <span className="ml-1 text-gray-600">{selected && ('downpayment' in selected) ? ((selected as any).downpayment ? `₹${(selected as any).downpayment}` : '-') : '-'}</span></div>
-                          <div><span className="font-medium text-gray-800">Loan Amount:</span> <span className="ml-1 text-gray-600">{selected && ('loanAmount' in selected) ? ((selected as any).loanAmount ? `₹${(selected as any).loanAmount}` : '-') : '-'}</span></div>
-                          <div><span className="font-medium text-gray-800">EMI Tenure:</span> <span className="ml-1 text-gray-600">{selected && ('emiTenure' in selected) ? ((selected as any).emiTenure ? `${(selected as any).emiTenure} months` : '-') : '-'}</span></div>
-                          <div><span className="font-medium text-gray-800">Start Date:</span> <span className="ml-1 text-gray-600">{selected && ('startDate' in selected) ? (selected as any).startDate || selected.joinDate || '-' : selected?.joinDate || '-'}</span></div>
+                          <div><span className="font-medium text-gray-800">Account Number:</span> <span className="ml-1 text-gray-600">{selected && ('accountNumber' in selected) ? (selected as any).accountNumber || '-' : '-'}</span></div>
+                          <div><span className="font-medium text-gray-800">IFSC Code:</span> <span className="ml-1 text-gray-600">{selected && ('ifscCode' in selected) ? (selected as any).ifscCode || '-' : '-'}</span></div>
                         </div>
                       </div>
                       {/* 14. View Documents Button */}
@@ -670,6 +683,15 @@ const Customers = () => {
                           })()}
                         </ul>
                       </details>
+                      {selected && emiHistory.length > 0 && (
+                        <div className="mt-4 p-4 rounded-xl bg-yellow-50 border border-yellow-300 flex flex-col items-center">
+                          <div className="text-lg font-semibold text-yellow-800 mb-1">Due EMI</div>
+                          <div className="text-2xl font-bold text-yellow-900">
+                            ₹{emiHistory.filter(e => !e.paid).reduce((sum, e) => sum + (parseFloat(e.amount) || 0) + (parseFloat(e.fine) || 0), 0)}
+                          </div>
+                          <div className="text-xs text-yellow-700 mt-1">Total unpaid EMI amount (including fines)</div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -746,6 +768,24 @@ const Customers = () => {
                   <option value="Completed">Completed</option>
                   <option value="Overdue">Overdue</option>
                 </select>
+                <input required className="border rounded px-3 py-2" placeholder="Account Number" value={form.accountNumber} onChange={e => setForm(f => ({ ...f, accountNumber: e.target.value }))} />
+                <input required className="border rounded px-3 py-2" placeholder="IFSC Code" value={form.ifscCode} onChange={e => setForm(f => ({ ...f, ifscCode: e.target.value }))} />
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="border rounded px-3 py-2 w-full h-full opacity-0 absolute inset-0 cursor-pointer z-10"
+                    onChange={e => {
+                      const file = e.target.files && e.target.files[0];
+                      if (file) {
+                        setForm(f => ({ ...f, customerPhoto: file }));
+                      }
+                    }}
+                  />
+                  <div className="border rounded px-3 py-2 w-full h-full flex items-center text-gray-400 bg-white pointer-events-none">
+                    {form.customerPhoto ? (typeof form.customerPhoto === 'string' ? 'Photo selected' : form.customerPhoto.name) : 'Upload Customer Photo'}
+                  </div>
+                </div>
               </div>
               <div className="flex gap-2 mt-2 col-span-2">
                 <button type="submit" className="flex-1 py-2 rounded bg-primary text-white hover:bg-purple-700" onClick={handleAddCustomer}>Add Customer</button>
