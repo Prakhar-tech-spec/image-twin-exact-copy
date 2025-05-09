@@ -87,6 +87,7 @@ const Customers = () => {
   const [allEmis, setAllEmis] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showPhotoMenu, setShowPhotoMenu] = useState(false);
 
   useEffect(() => {
     fetchCustomers();
@@ -863,10 +864,13 @@ const Customers = () => {
                 <input required className="border rounded px-3 py-2" placeholder="Account Number" value={form.accountNumber} onChange={e => setForm(f => ({ ...f, accountNumber: e.target.value }))} />
                 <input required className="border rounded px-3 py-2" placeholder="IFSC Code" value={form.ifscCode} onChange={e => setForm(f => ({ ...f, ifscCode: e.target.value }))} />
                 <div className="relative">
+                  {/* Hidden file inputs for camera and album */}
                   <input
                     type="file"
                     accept="image/*"
-                    className="border rounded px-3 py-2 w-full h-full opacity-0 absolute inset-0 cursor-pointer z-10"
+                    capture="environment"
+                    style={{ display: 'none' }}
+                    id="customer-photo-camera"
                     onChange={e => {
                       const file = e.target.files && e.target.files[0];
                       if (file) {
@@ -874,9 +878,58 @@ const Customers = () => {
                       }
                     }}
                   />
-                  <div className="border rounded px-3 py-2 w-full h-full flex items-center text-gray-400 bg-white pointer-events-none">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    id="customer-photo-album"
+                    onChange={e => {
+                      const file = e.target.files && e.target.files[0];
+                      if (file) {
+                        setForm(f => ({ ...f, customerPhoto: file }));
+                      }
+                    }}
+                  />
+                  {/* Button to trigger menu */}
+                  <button
+                    type="button"
+                    className="border rounded px-3 py-2 w-full h-full flex items-center text-gray-400 bg-white"
+                    onClick={e => setShowPhotoMenu(true)}
+                  >
                     {form.customerPhoto ? (typeof form.customerPhoto === 'string' ? 'Photo selected' : form.customerPhoto.name) : 'Upload Customer Photo'}
-                  </div>
+                  </button>
+                  {/* Menu for photo options */}
+                  {showPhotoMenu && (
+                    <div className="absolute left-0 top-full mt-2 w-full bg-white border rounded shadow z-50 flex flex-col">
+                      <button
+                        type="button"
+                        className="px-4 py-2 hover:bg-gray-100 text-left"
+                        onClick={() => {
+                          setShowPhotoMenu(false);
+                          document.getElementById('customer-photo-camera').click();
+                        }}
+                      >
+                        Take Photo
+                      </button>
+                      <button
+                        type="button"
+                        className="px-4 py-2 hover:bg-gray-100 text-left"
+                        onClick={() => {
+                          setShowPhotoMenu(false);
+                          document.getElementById('customer-photo-album').click();
+                        }}
+                      >
+                        Choose from Album
+                      </button>
+                      <button
+                        type="button"
+                        className="px-4 py-2 hover:bg-gray-100 text-left text-red-500"
+                        onClick={() => setShowPhotoMenu(false)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="flex flex-col md:flex-row gap-2 mt-2 col-span-2 w-full">
