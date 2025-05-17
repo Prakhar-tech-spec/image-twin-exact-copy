@@ -793,7 +793,26 @@ const Customers = () => {
                   <div className="p-4 rounded-xl bg-yellow-50 border border-yellow-300 flex flex-col items-center shadow-sm">
                     <div className="text-lg font-semibold text-yellow-800 mb-1">Due EMI</div>
                     <div className="text-2xl font-bold text-yellow-900">
-                      ₹{emiHistory.filter(e => !e.paid).reduce((sum, e) => sum + (parseFloat(e.amount) || 0) + (parseFloat(e.fine) || 0), 0)}
+                      {(() => {
+                        // Count paid EMIs
+                        const paidCount = emiHistory.filter(e => e.paid).length;
+                        const unpaidEmis = emiHistory.filter(e => !e.paid);
+                        // If no EMI is paid, show the full loan amount (or original device price - downpayment if you want)
+                        if (paidCount === 0) {
+                          // Use loanAmount (already device price - downpayment)
+                          let due = 0;
+                          if (selected && 'loanAmount' in selected && selected.loanAmount) {
+                            due = parseFloat(selected.loanAmount) || 0;
+                          }
+                          // Add all fines from unpaid EMIs
+                          const totalFine = unpaidEmis.reduce((sum, e) => sum + (parseFloat(e.fine) || 0), 0);
+                          return `₹${(due + totalFine).toFixed(2)}`;
+                        } else {
+                          // Otherwise, sum all unpaid EMIs (amount + fine)
+                          const totalDue = unpaidEmis.reduce((sum, e) => sum + (parseFloat(e.amount) || 0) + (parseFloat(e.fine) || 0), 0);
+                          return `₹${totalDue.toFixed(2)}`;
+                        }
+                      })()}
                     </div>
                     <div className="text-xs text-yellow-700 mt-1">Total unpaid EMI amount (including fines)</div>
                   </div>
