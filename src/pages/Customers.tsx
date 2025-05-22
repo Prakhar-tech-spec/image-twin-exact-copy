@@ -164,7 +164,26 @@ const Customers = () => {
     const emi = emiHistory.find(e => e.id === emiId);
     if (emi) {
       // Assume marking as paid from the list means full payment for now
-      await updateEmi({ ...emi, paid: (parseFloat(emi.amount) || 0) + (parseFloat(emi.fine) || 0) }); // Mark as fully paid including fine
+      const totalDue = (parseFloat(emi.amount) || 0) + (parseFloat(emi.fine) || 0);
+      const remainingDue = totalDue - (parseFloat(emi.paid) || 0);
+      const amountToPay = remainingDue > 0 ? remainingDue : 0; // Amount to pay to mark as fully paid
+
+      const updatedPaymentHistory = [
+        ...(emi.payment_history || []),
+        {
+          date: new Date().toISOString().slice(0, 10),
+          amount: amountToPay, // Record the amount paid to clear the due
+          fine_paid: parseFloat(emi.fine) || 0, // Record the fine paid as part of this full payment
+          type: 'full_payment' // Add a type to identify full payments via this button
+        }
+      ];
+
+      await updateEmi({
+        ...emi,
+        paid: totalDue, // Mark as fully paid
+        fine: 0, // Reset fine to 0 as it's paid
+        payment_history: updatedPaymentHistory
+      });
       if (selected && selected.id) fetchEmiHistory(selected.id);
       fetchAllEmis();
     }
@@ -258,6 +277,34 @@ const Customers = () => {
     setPaymentAmount("");
     setFineAmount("");
     setFinePercent("");
+    fetchEmiHistory(selected.id);
+    fetchAllEmis();
+  }
+
+  async function undoPaidEmi(emiId) {
+    const emi = emiHistory.find(e => e.id === emiId);
+    if (!emi) return;
+
+    // Retain payment history but reset paid and fine amounts
+    // Remove the last payment history entry if it was a 'full_payment'
+    const updatedPaymentHistory = [...(emi.payment_history || [])];
+    if (updatedPaymentHistory.length > 0) {
+      const lastPayment = updatedPaymentHistory[updatedPaymentHistory.length - 1];
+      if (lastPayment.type === 'full_payment') {
+        updatedPaymentHistory.pop(); // Remove the last entry if it's a full_payment type
+      }
+    }
+
+    const updatedEmi = {
+      ...emi,
+      paid: 0, // Reset paid amount
+      fine: 0, // Reset fine amount
+      payment_history: updatedPaymentHistory // Use the potentially modified history
+    };
+
+    await updateEmi(updatedEmi);
+
+    // Refresh EMI history and all emis state
     fetchEmiHistory(selected.id);
     fetchAllEmis();
   }
@@ -772,11 +819,22 @@ const Customers = () => {
                                     </>
                                   )}
                                   {emi.paid >= (parseFloat(emi.amount) + parseFloat(emi.fine)) && (
-                                    <button className="bg-yellow-100 text-yellow-700 p-1 rounded-full text-xs flex items-center justify-center" title="Add Payment/Fine" onClick={() => handleEmiAction(emi.id)}>
-                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                      </svg>
-                                    </button>
+                                    <div className="flex gap-1">
+                                      {/* New button to undo paid status */}
+                                      <button className="bg-red-100 text-red-700 p-1 rounded-full text-xs flex items-center justify-center" title="Undo Paid" onClick={() => undoPaidEmi(emi.id)}>
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                      </button>
+                                      {/* Show Add Payment/Fine button only if not fully paid */}
+                                      {emi.paid < (parseFloat(emi.amount) + parseFloat(emi.fine)) && (
+                                        <button className="bg-yellow-100 text-yellow-700 p-1 rounded-full text-xs flex items-center justify-center" title="Add Payment/Fine" onClick={() => handleEmiAction(emi.id)}>
+                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                          </svg>
+                                        </button>
+                                      )}
+                                    </div>
                                   )}
                                 </div>
                               </div>
