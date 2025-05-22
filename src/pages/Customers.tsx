@@ -82,7 +82,7 @@ const Customers = () => {
     customerPhoto: null
   });
   const [warning, setWarning] = useState("");
-  const [emiPaid, setEmiPaid] = useState(null);
+  const [paymentAmount, setPaymentAmount] = useState("");
   const [emiDate, setEmiDate] = useState(new Date().toISOString().slice(0, 10));
   const [allEmis, setAllEmis] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -163,99 +163,99 @@ const Customers = () => {
   async function markAsPaid(emiId) {
     const emi = emiHistory.find(e => e.id === emiId);
     if (emi) {
-      await updateEmi({ ...emi, paid: 1 });
+      // Assume marking as paid from the list means full payment for now
+      await updateEmi({ ...emi, paid: (parseFloat(emi.amount) || 0) + (parseFloat(emi.fine) || 0) }); // Mark as fully paid including fine
       if (selected && selected.id) fetchEmiHistory(selected.id);
       fetchAllEmis();
     }
   }
 
-  function markAsUnpaid(emiId) {
-    setFineModal({ open: true, emiId });
+  // Modal to add payment or fine
+  function handleEmiAction(emiId) {
+    setPaymentAmount("");
     setFineAmount("");
     setFinePercent("");
+    setFineModal({ open: true, emiId: emiId }); // Reuse fine modal state for both
   }
 
-  async function handleEmiPaid(isPaid) {
-    setShowEmiModal(false);
-    if (isPaid) {
-      // Find any EMI for this customer and date
-      const emisForCustomer = await getEmis();
-      const emisForDate = emisForCustomer.filter(e => e.customer_id === selected.id && e.due_date === emiDate);
-      const unpaidEmi = emisForDate.find(e => !e.paid);
-      let emiAmount = selected.loanAmount && selected.emiTenure ? parseFloat(selected.loanAmount)/parseInt(selected.emiTenure) : 0;
-      if (unpaidEmi) {
-        await updateEmi({ ...unpaidEmi, paid: 1 });
-      } else if (emisForDate.length === 0) {
-        // No EMI exists for this date, create a new paid EMI
-        await addEmi({
-          customer_id: selected.id,
-          due_date: emiDate,
-          amount: emiAmount,
-          paid: 1,
-          fine: 0
-        });
+  async function handleSubmitEmiAction() {
+    const emi = emiHistory.find(e => e.id === fineModal.emiId);
+    if (!emi) return;
+
+    const payment = parseFloat(paymentAmount) || 0;
+    const fineApplied = parseFloat(fineAmount) || 0;
+    const finePercentApplied = parseFloat(finePercent) || 0;
+
+    // Calculate total due amount including existing fine
+    const totalDue = (parseFloat(emi.amount) || 0) + (parseFloat(emi.fine) || 0);
+    const remainingDue = totalDue - (parseFloat(emi.paid) || 0);
+
+    // Calculate new fine amount
+    let calculatedFine = fineApplied;
+    if (finePercentApplied > 0) {
+      calculatedFine += remainingDue * (finePercentApplied / 100);
+    }
+
+    // Validate payment amount
+    if (payment > remainingDue + calculatedFine) {
+      alert("Payment amount cannot exceed total due amount including new fine");
+      return;
+    }
+
+    const updatedEmi = {
+      ...emi,
+      paid: (parseFloat(emi.paid) || 0) + payment,
+      fine: (parseFloat(emi.fine) || 0) + calculatedFine,
+      last_payment_date: new Date().toISOString().slice(0, 10),
+      payment_history: [
+        ...(emi.payment_history || []),
+        {
+          date: new Date().toISOString().slice(0, 10),
+          amount: payment,
+          fine_paid: calculatedFine > 0 ? calculatedFine : 0
+        }
+      ]
+    };
+
+    await updateEmi(updatedEmi);
+
+    // If payment was full or more than due, check if next EMI needs creation
+    if (updatedEmi.paid >= totalDue + calculatedFine) {
+      // Check if this is the last EMI based on tenure
+      const tenure = parseInt(selected?.emiTenure || 0);
+      const emisForCustomer = emiHistory.filter(e => e.customer_id === selected.id);
+      const paidEmisCount = emisForCustomer.filter(e => (parseFloat(e.paid) || 0) >= (parseFloat(e.amount) || 0) + (parseFloat(e.fine) || 0)).length + (updatedEmi.paid >= totalDue + calculatedFine && (parseFloat(emi.paid) || 0) < totalDue ? 1 : 0);
+
+      if (paidEmisCount < tenure) {
+        // Find the latest due date among existing EMIs for this customer
+        const latestDueDate = emisForCustomer.reduce((latest, current) => {
+          return new Date(current.due_date) > new Date(latest.due_date) ? current : latest;
+        }, emisForCustomer[0] || { due_date: selected?.startDate || new Date().toISOString().slice(0, 10) }).due_date;
+
+        const lastEmiDate = new Date(latestDueDate);
+        const nextMonthDate = new Date(lastEmiDate);
+        nextMonthDate.setMonth(lastEmiDate.getMonth() + 1);
+        const nextDueDateStr = nextMonthDate.toISOString().slice(0, 10);
+
+        // Check if an EMI already exists for this next due date
+        const nextEmiExists = emisForCustomer.some(e => e.due_date === nextDueDateStr);
+
+        if (!nextEmiExists) {
+          const emiAmount = selected.loanAmount && selected.emiTenure ? parseFloat(selected.loanAmount) / parseInt(selected.emiTenure) : 0;
+          await addEmi({
+            customer_id: selected.id,
+            due_date: nextDueDateStr,
+            amount: emiAmount,
+            paid: 0,
+            fine: 0,
+            payment_history: []
+          });
+        }
       }
-      // If already paid, do nothing
-
-      // 3. Calculate next month's due date
-      const currentDate = new Date(emiDate);
-      const nextMonthDate = new Date(currentDate);
-      nextMonthDate.setMonth(currentDate.getMonth() + 1);
-      const nextDueDate = nextMonthDate.toISOString().slice(0, 10);
-
-      // 4. Check if next unpaid EMI already exists
-      const nextEmiExists = emisForCustomer.some(e => e.customer_id === selected.id && e.due_date === nextDueDate && !e.paid);
-      // 5. Count paid EMIs for tenure check
-      const paidEmisCount = emisForCustomer.filter(e => e.customer_id === selected.id && e.paid).length + 1; // +1 for this payment
-      if (!nextEmiExists && paidEmisCount < parseInt(selected.emiTenure)) {
-        await addEmi({
-          customer_id: selected.id,
-          due_date: nextDueDate,
-          amount: emiAmount,
-          paid: 0,
-          fine: 0
-        });
-      }
-
-      fetchEmiHistory(selected.id);
-      fetchAllEmis();
-    } else {
-      // Show fine modal
-      setFineAmount("");
-      setFinePercent("");
-      setFineModal({ open: true, emiId: null });
     }
-  }
 
-  async function handleFineSubmit() {
-    // At least one field required
-    if (!fineAmount && !finePercent) return;
-    const emiAmount = selected.loanAmount && selected.emiTenure ? parseFloat(selected.loanAmount)/parseInt(selected.emiTenure) : 0;
-    let fine = 0;
-    if (fineAmount) fine = parseFloat(fineAmount);
-    else if (finePercent) fine = (parseFloat(finePercent)/100) * emiAmount;
-
-    // Find the correct EMI by id if available, else by date
-    const emisForCustomer = await getEmis();
-    let currentEmi = null;
-    if (fineModal.emiId) {
-      currentEmi = emisForCustomer.find(e => e.id === fineModal.emiId);
-    } else {
-      currentEmi = emisForCustomer.find(e => e.customer_id === selected.id && e.due_date === emiDate && !e.paid);
-    }
-    if (currentEmi) {
-      await updateEmi({ ...currentEmi, fine: (currentEmi.fine || 0) + fine });
-    } else {
-      // If not found, create a new one (fallback)
-      await addEmi({
-        customer_id: selected.id,
-        due_date: emiDate,
-        amount: emiAmount,
-        paid: 0,
-        fine: fine
-      });
-    }
     setFineModal({ open: false, emiId: null });
+    setPaymentAmount("");
     setFineAmount("");
     setFinePercent("");
     fetchEmiHistory(selected.id);
@@ -271,7 +271,7 @@ const Customers = () => {
       (c.primaryContact && c.primaryContact.toLowerCase().includes(searchVal)) ||
       (c.phone && c.phone.toLowerCase().includes(searchVal)) ||
       (c.email && c.email.toLowerCase().includes(searchVal))
-  );
+    );
   });
 
   async function handleAddCustomer(e) {
@@ -353,32 +353,17 @@ const Customers = () => {
     setShowAddModal(true);
   }
 
-  function handleEmiAction() {
-    setEmiPaid(null);
-    setEmiDate(new Date().toISOString().slice(0, 10));
-    setShowEmiModal(true);
-  }
-
   async function handleDeleteCustomer() {
-      await deleteCustomer(selected.id);
-      // Also delete all EMIs for this customer
-      const emis = await getEmis();
-      const customerEmis = emis.filter(e => e.customer_id === selected.id);
-      for (const emi of customerEmis) {
-        await deleteEmi(emi.id);
-      }
-      fetchCustomers();
-      setSelected(null);
-    fetchAllEmis();
-  }
-
-  async function markEmiAsUnpaid(emiId) {
-    const emi = emiHistory.find(e => e.id === emiId);
-    if (emi) {
-      await updateEmi({ ...emi, paid: 0 });
-      if (selected && selected.id) fetchEmiHistory(selected.id);
-      fetchAllEmis();
+    await deleteCustomer(selected.id);
+    // Also delete all EMIs for this customer
+    const emis = await getEmis();
+    const customerEmis = emis.filter(e => e.customer_id === selected.id);
+    for (const emi of customerEmis) {
+      await deleteEmi(emi.id);
     }
+    fetchCustomers();
+    setSelected(null);
+    fetchAllEmis();
   }
 
   return (
@@ -745,40 +730,59 @@ const Customers = () => {
                       const emiRows = [];
                       for (let i = 0; i < tenure; i++) {
                         const dueDate = new Date(startDate);
-                        dueDate.setMonth(startDate.getMonth() + i + 1); // Start from next month
+                        dueDate.setMonth(startDate.getMonth() + i + 1);
                         const dueDateStr = dueDate.toISOString().slice(0, 10);
                         const emi = emiHistory.find(e => e.due_date === dueDateStr);
                         emiRows.push(
                           emi ? (
-                            <li key={emi.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center text-sm py-1 border-b last:border-b-0 gap-y-1">
-                              <span>{emi.due_date} - ₹{emi.amount} {emi.fine ? `(+₹${emi.fine} fine)` : ''}</span>
-                              <span className={`px-2 rounded-full font-medium ${emi.paid ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{emi.paid ? 'Paid' : 'Unpaid'}</span>
-                              <span className="flex gap-1">
-                                {!emi.paid && (
-                                  <>
-                                    <button className="bg-green-100 text-green-700 p-1 rounded-full text-xs flex items-center justify-center" title="Mark as Paid" onClick={() => markAsPaid(emi.id)}>
+                            <li key={emi.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center text-sm py-2 border-b last:border-b-0 gap-y-2">
+                              <div className="flex flex-col">
+                                <span className="font-medium">{emi.due_date}</span>
+                                <span className="text-gray-600">Amount: ₹{emi.amount}</span>
+                                {emi.fine > 0 && <span className="text-red-600">Fine: ₹{emi.fine}</span>}
+                                {emi.payment_history && emi.payment_history.length > 0 && (
+                                  <div className="mt-1 text-xs text-gray-500">
+                                    {emi.payment_history.map((payment, idx) => (
+                                      <div key={idx} className="flex gap-2">
+                                        <span>Paid: ₹{payment.amount}</span>
+                                        {payment.fine_paid > 0 && <span>Fine: ₹{payment.fine_paid}</span>}
+                                        <span>{payment.date}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex flex-col items-end gap-2">
+                                <span className={`px-2 rounded-full font-medium ${emi.paid >= (parseFloat(emi.amount) + parseFloat(emi.fine)) ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                  {emi.paid >= (parseFloat(emi.amount) + parseFloat(emi.fine)) ? 'Paid' : 'Unpaid'}
+                                </span>
+                                <div className="flex gap-1">
+                                  {emi.paid < (parseFloat(emi.amount) + parseFloat(emi.fine)) && (
+                                    <>
+                                      <button className="bg-green-100 text-green-700 p-1 rounded-full text-xs flex items-center justify-center" title="Mark as Paid" onClick={() => markAsPaid(emi.id)}>
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                      </button>
+                                      <button className="bg-red-100 text-red-700 p-1 rounded-full text-xs flex items-center justify-center" title="Add Payment/Fine" onClick={() => handleEmiAction(emi.id)}>
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                        </svg>
+                                      </button>
+                                    </>
+                                  )}
+                                  {emi.paid >= (parseFloat(emi.amount) + parseFloat(emi.fine)) && (
+                                    <button className="bg-yellow-100 text-yellow-700 p-1 rounded-full text-xs flex items-center justify-center" title="Add Payment/Fine" onClick={() => handleEmiAction(emi.id)}>
                                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                                       </svg>
                                     </button>
-                                    <button className="bg-red-100 text-red-700 p-1 rounded-full text-xs flex items-center justify-center" title="Mark as Unpaid / Add Fine" onClick={() => markAsUnpaid(emi.id)}>
-                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                      </svg>
-                                    </button>
-                                  </>
-                                )}
-                                {emi.paid && (
-                                  <button className="bg-yellow-100 text-yellow-700 p-1 rounded-full text-xs flex items-center justify-center" title="Mark as Unpaid" onClick={() => markEmiAsUnpaid(emi.id)}>
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                  </button>
-                                )}
-                              </span>
+                                  )}
+                                </div>
+                              </div>
                             </li>
                           ) : (
-                            <li key={dueDateStr} className="flex flex-col sm:flex-row justify-between items-start sm:items-center text-sm py-1 border-b last:border-b-0 text-gray-400 gap-y-1">
+                            <li key={dueDateStr} className="flex flex-col sm:flex-row justify-between items-start sm:items-center text-sm py-2 border-b last:border-b-0 text-gray-400">
                               <span>{dueDateStr} - ₹-</span>
                               <span className="px-2 rounded-full font-medium bg-gray-100 text-gray-400">-</span>
                             </li>
@@ -794,24 +798,14 @@ const Customers = () => {
                     <div className="text-lg font-semibold text-yellow-800 mb-1">Due EMI</div>
                     <div className="text-2xl font-bold text-yellow-900">
                       {(() => {
-                        // Count paid EMIs
-                        const paidCount = emiHistory.filter(e => e.paid).length;
-                        const unpaidEmis = emiHistory.filter(e => !e.paid);
-                        // If no EMI is paid, show the full loan amount (or original device price - downpayment if you want)
-                        if (paidCount === 0) {
-                          // Use loanAmount (already device price - downpayment)
-                          let due = 0;
-                          if (selected && 'loanAmount' in selected && selected.loanAmount) {
-                            due = parseFloat(selected.loanAmount) || 0;
-                          }
-                          // Add all fines from unpaid EMIs
-                          const totalFine = unpaidEmis.reduce((sum, e) => sum + (parseFloat(e.fine) || 0), 0);
-                          return `₹${(due + totalFine).toFixed(2)}`;
-                        } else {
-                          // Otherwise, sum all unpaid EMIs (amount + fine)
-                          const totalDue = unpaidEmis.reduce((sum, e) => sum + (parseFloat(e.amount) || 0) + (parseFloat(e.fine) || 0), 0);
-                          return `₹${totalDue.toFixed(2)}`;
-                        }
+                        const unpaidEmis = emiHistory.filter(e => e.paid < (parseFloat(e.amount) + parseFloat(e.fine)));
+                        const totalDue = unpaidEmis.reduce((sum, e) => {
+                          const amount = parseFloat(e.amount) || 0;
+                          const fine = parseFloat(e.fine) || 0;
+                          const paid = parseFloat(e.paid) || 0;
+                          return sum + (amount + fine - paid);
+                        }, 0);
+                        return `₹${totalDue.toFixed(2)}`;
                       })()}
                     </div>
                     <div className="text-xs text-yellow-700 mt-1">Total unpaid EMI amount (including fines)</div>
@@ -1010,78 +1004,119 @@ const Customers = () => {
           </div>
         </motion.div>
       )}
-      {/* EMI Modal */}
-      {showEmiModal && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          transition={{ duration: 0.25 }}
-          className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50"
-        >
-          <div className="bg-white rounded-2xl shadow-lg w-full max-w-md p-6 relative">
-            <button type="button" className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl" onClick={() => setShowEmiModal(false)} aria-label="Close">&times;</button>
-            <h3 className="text-lg font-semibold mb-4">EMI Payment</h3>
-            <div className="mb-4 text-gray-700 text-base">Is the EMI paid for <span className="font-semibold">{selected?.name}</span>?</div>
-            <div className="flex gap-4 mb-4">
-              <button
-                className={`flex-1 py-2 rounded-full border ${emiPaid === true ? 'bg-green-500 text-white border-green-500' : 'bg-white text-gray-700 border-gray-300'} font-medium transition`}
-                onClick={() => handleEmiPaid(true)}
-              >
-                Yes
-              </button>
-              <button
-                className={`flex-1 py-2 rounded-full border ${emiPaid === false ? 'bg-red-500 text-white border-red-500' : 'bg-white text-gray-700 border-gray-300'} font-medium transition`}
-                onClick={() => handleEmiPaid(false)}
-              >
-                No
-              </button>
-            </div>
-            <div className="mb-4">
-              <label className="block text-gray-600 mb-1 font-medium">Date</label>
-              <input
-                type="date"
-                className="border rounded px-3 py-2 w-full"
-                value={emiDate}
-                onChange={e => setEmiDate(e.target.value)}
-                max={new Date().toISOString().slice(0, 10)}
-              />
-            </div>
-          </div>
-        </motion.div>
-      )}
-      {/* Fine Modal */}
-      {fineModal.open && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          transition={{ duration: 0.25 }}
-          className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50"
-        >
-          <div className="bg-white rounded-xl p-8 shadow-xl w-80">
-            <h2 className="text-lg font-semibold mb-4">Add Fine for Unpaid EMI</h2>
-            <input
-              type="number"
-              className="border rounded w-full px-3 py-2 mb-4"
-              placeholder="Enter fine amount (₹)"
-              value={fineAmount}
-              onChange={e => setFineAmount(e.target.value)}
-            />
-            <input
-              type="number"
-              className="border rounded w-full px-3 py-2 mb-4"
-              placeholder="Enter fine percentage (%)"
-              value={finePercent}
-              onChange={e => setFinePercent(e.target.value)}
-            />
-            <div className="flex gap-2">
-              <button className="flex-1 bg-purple-600 text-white rounded px-4 py-2" onClick={handleFineSubmit} disabled={!fineAmount && !finePercent}>Submit</button>
-              <button className="flex-1 bg-gray-200 rounded px-4 py-2" onClick={() => setFineModal({ open: false, emiId: null })}>Cancel</button>
-            </div>
-          </div>
-        </motion.div>
-      )}
+      {/* EMI Payment/Fine Modal */}
+      <AnimatePresence>
+        {fineModal.open && selected && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center"
+          >
+            <motion.div
+              initial={{ y: -50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 50, opacity: 0 }}
+              className="bg-white rounded-lg p-6 w-full max-w-sm mx-auto shadow-lg"
+            >
+              <h3 className="text-lg font-semibold mb-4">Add Payment or Fine</h3>
+              {fineModal.emiId && (
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600">For EMI ID: {fineModal.emiId}</p>
+                </div>
+              )}
+              <div className="mb-4">
+                <label htmlFor="paymentAmount" className="block text-sm font-medium text-gray-700">Payment Amount</label>
+                <input
+                  type="number"
+                  id="paymentAmount"
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                  placeholder="Enter amount paid"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+              <div className="mb-4">
+                <label htmlFor="fineAmount" className="block text-sm font-medium text-gray-700">Fine Amount</label>
+                <input
+                  type="number"
+                  id="fineAmount"
+                  value={fineAmount}
+                  onChange={(e) => setFineAmount(e.target.value)}
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                  placeholder="Enter fixed fine amount"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+              <div className="mb-4">
+                <label htmlFor="finePercent" className="block text-sm font-medium text-gray-700">Fine Percentage (%)</label>
+                <input
+                  type="number"
+                  id="finePercent"
+                  value={finePercent}
+                  onChange={(e) => setFinePercent(e.target.value)}
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                  placeholder="Enter fine percentage"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                />
+              </div>
+              {/* Display current due and total after potential additions */}
+              {fineModal.emiId && emiHistory.find(e => e.id === fineModal.emiId) && (
+                <div className="mb-4 p-3 bg-gray-50 rounded-md">
+                  <div className="text-sm text-gray-600">
+                    <p className="font-medium mb-1">Current Status:</p>
+                    <p>Original Amount: ₹{emiHistory.find(e => e.id === fineModal.emiId)?.amount}</p>
+                    <p>Existing Fine: ₹{emiHistory.find(e => e.id === fineModal.emiId)?.fine || 0}</p>
+                    <p>Amount Paid: ₹{emiHistory.find(e => e.id === fineModal.emiId)?.paid || 0}</p>
+                    <p className="font-medium mt-2">Remaining Due: ₹{(
+                      (parseFloat(emiHistory.find(e => e.id === fineModal.emiId)?.amount || 0) +
+                      parseFloat(emiHistory.find(e => e.id === fineModal.emiId)?.fine || 0) -
+                      parseFloat(emiHistory.find(e => e.id === fineModal.emiId)?.paid || 0)
+                    ).toFixed(2)}</p>
+                    {fineAmount || finePercent ? (
+                      <p className="font-medium mt-2 text-red-600">
+                        New Fine: ₹{(() => {
+                          const emi = emiHistory.find(e => e.id === fineModal.emiId);
+                          const remainingDue = (parseFloat(emi?.amount || 0) + parseFloat(emi?.fine || 0) - parseFloat(emi?.paid || 0));
+                          let newFine = parseFloat(fineAmount) || 0;
+                          if (finePercent) {
+                            newFine += remainingDue * (parseFloat(finePercent) / 100);
+                          }
+                          return newFine.toFixed(2);
+                        })()}
+                      </p>
+                    ) : null}
+                    {paymentAmount ? (
+                      <p className="font-medium mt-2 text-green-600">
+                        New Payment: ₹{parseFloat(paymentAmount).toFixed(2)}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              )}
+              <div className="flex justify-end gap-4">
+                <button
+                  className="bg-gray-300 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-400"
+                  onClick={() => setFineModal({ open: false, emiId: null })}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600"
+                  onClick={handleSubmitEmiAction}
+                >
+                  Submit
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <motion.div
