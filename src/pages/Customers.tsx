@@ -842,7 +842,7 @@ const Customers = () => {
                     className="border rounded px-3 py-2 w-full h-full opacity-0 absolute inset-0 cursor-pointer z-10"
                     multiple
                     accept=".pdf,.jpg,.jpeg,.png"
-                    onChange={e => {
+                    onChange={(e) => {
                       const files = Array.from(e.target.files);
                       if (files.length > 5) {
                         setForm(f => ({ ...f, idDocs: [] }));
@@ -888,7 +888,7 @@ const Customers = () => {
                     capture="environment"
                     style={{ display: 'none' }}
                     id="customer-photo-camera"
-                    onChange={e => {
+                    onChange={(e) => {
                       const file = e.target.files && e.target.files[0];
                       if (file) {
                         setForm(f => ({ ...f, customerPhoto: file }));
@@ -900,7 +900,7 @@ const Customers = () => {
                     accept="image/*"
                     style={{ display: 'none' }}
                     id="customer-photo-album"
-                    onChange={e => {
+                    onChange={(e) => {
                       const file = e.target.files && e.target.files[0];
                       if (file) {
                         setForm(f => ({ ...f, customerPhoto: file }));
@@ -911,7 +911,7 @@ const Customers = () => {
                   <button
                     type="button"
                     className="border rounded px-3 py-2 w-full h-full flex items-center text-gray-400 bg-white"
-                    onClick={e => setShowPhotoMenu(true)}
+                    onClick={(e) => setShowPhotoMenu(true)}
                   >
                     {form.customerPhoto ? (typeof form.customerPhoto === 'string' ? 'Photo selected' : form.customerPhoto.name) : 'Upload Customer Photo'}
                   </button>
@@ -921,7 +921,7 @@ const Customers = () => {
                       <button
                         type="button"
                         className="px-4 py-2 hover:bg-gray-100 text-left"
-                        onClick={() => {
+                        onClick={(e) => {
                           setShowPhotoMenu(false);
                           document.getElementById('customer-photo-camera').click();
                         }}
@@ -931,7 +931,7 @@ const Customers = () => {
                       <button
                         type="button"
                         className="px-4 py-2 hover:bg-gray-100 text-left"
-                        onClick={() => {
+                        onClick={(e) => {
                           setShowPhotoMenu(false);
                           document.getElementById('customer-photo-album').click();
                         }}
@@ -941,7 +941,7 @@ const Customers = () => {
                       <button
                         type="button"
                         className="px-4 py-2 hover:bg-gray-100 text-left text-red-500"
-                        onClick={() => setShowPhotoMenu(false)}
+                        onClick={(e) => setShowPhotoMenu(false)}
                       >
                         Cancel
                       </button>
@@ -1074,15 +1074,15 @@ const Customers = () => {
                     <p>Existing Fine: ₹{emiHistory.find(e => e.id === fineModal.emiId)?.fine || 0}</p>
                     <p>Amount Paid: ₹{emiHistory.find(e => e.id === fineModal.emiId)?.paid || 0}</p>
                     <p className="font-medium mt-2">Remaining Due: ₹{(
-                      (parseFloat(emiHistory.find(e => e.id === fineModal.emiId)?.amount || 0) +
-                      parseFloat(emiHistory.find(e => e.id === fineModal.emiId)?.fine || 0) -
-                      parseFloat(emiHistory.find(e => e.id === fineModal.emiId)?.paid || 0)
+                      (parseFloat(emiHistory.find(e => e.id === fineModal.emiId)?.amount || '0') +
+                      parseFloat(emiHistory.find(e => e.id === fineModal.emiId)?.fine || '0') -
+                      parseFloat(emiHistory.find(e => e.id === fineModal.emiId)?.paid || '0'))
                     ).toFixed(2)}</p>
                     {fineAmount || finePercent ? (
                       <p className="font-medium mt-2 text-red-600">
                         New Fine: ₹{(() => {
                           const emi = emiHistory.find(e => e.id === fineModal.emiId);
-                          const remainingDue = (parseFloat(emi?.amount || 0) + parseFloat(emi?.fine || 0) - parseFloat(emi?.paid || 0));
+                          const remainingDue = (parseFloat(emi?.amount || '0') + parseFloat(emi?.fine || '0') - parseFloat(emi?.paid || '0'));
                           let newFine = parseFloat(fineAmount) || 0;
                           if (finePercent) {
                             newFine += remainingDue * (parseFloat(finePercent) / 100);
@@ -1093,7 +1093,7 @@ const Customers = () => {
                     ) : null}
                     {paymentAmount ? (
                       <p className="font-medium mt-2 text-green-600">
-                        New Payment: ₹{parseFloat(paymentAmount).toFixed(2)}
+                        New Payment: ₹{parseFloat(paymentAmount || '0').toFixed(2)}
                       </p>
                     ) : null}
                   </div>
