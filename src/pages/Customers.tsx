@@ -325,9 +325,9 @@ const Customers = () => {
     e.preventDefault();
     if (isEditMode) {
       // Save previous values for comparison
-      const prevTenure = selected.emiTenure;
-      const prevLoanAmount = selected.loanAmount;
-      const prevStartDate = selected.startDate || selected.joinDate;
+      const prevTenure = Number(selected.emiTenure);
+      const prevLoanAmount = Number(selected.loanAmount);
+      const prevStartDate = String(selected.startDate || selected.joinDate);
       await updateCustomer({ ...selected, ...form });
       setShowAddModal(false);
       setIsEditMode(false);
@@ -337,9 +337,9 @@ const Customers = () => {
       if (updated) setSelected(updated);
       // If tenure, loan amount, or start date changed, update EMI history
       if (
-        prevTenure !== form.emiTenure ||
-        prevLoanAmount !== form.loanAmount ||
-        prevStartDate !== form.startDate
+        prevTenure !== Number(form.emiTenure) ||
+        prevLoanAmount !== Number(form.loanAmount) ||
+        prevStartDate !== String(form.startDate)
       ) {
         // Delete all EMIs for this customer
         const emis = await getEmis();
@@ -354,9 +354,9 @@ const Customers = () => {
           if (checkEmis.length === 0) break;
           await new Promise(resolve => setTimeout(resolve, 50));
         }
-        // Regenerate EMI schedule
-        const tenure = parseInt(form.emiTenure);
-        const loanAmount = parseFloat(form.loanAmount);
+        // Regenerate EMI schedule using latest form values
+        const tenure = Number(form.emiTenure);
+        const loanAmount = Number(form.loanAmount);
         const startDate = new Date(form.startDate);
         for (let i = 0; i < tenure; i++) {
           const dueDate = new Date(startDate);
