@@ -1,0 +1,96 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 15%; /* Dark color #262626 */
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 15%;
+
+    --primary: 283 39% 53%; /* Primary color #9B59B6 */
+    --primary-foreground: 0 0% 100%; /* Light color #FFFFFF */
+
+    --secondary: 283 20% 95%;
+    --secondary-foreground: 283 39% 53%;
+
+    --muted: 283 10% 95%;
+    --muted-foreground: 283 10% 40%;
+
+    --accent: 283 20% 95%;
+    --accent-foreground: 283 39% 53%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 283 20% 90%;
+    --input: 283 20% 90%;
+    --ring: 283 39% 53%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 15%;
+    --sidebar-primary: 283 39% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 283 20% 95%;
+    --sidebar-accent-foreground: 283 39% 53%;
+    --sidebar-border: 283 20% 90%;
+    --sidebar-ring: 283 39% 53%;
+  }
+
+  .dark {
+    --background: 0 0% 15%; /* Dark color #262626 */
+    --foreground: 0 0% 100%; /* Light color #FFFFFF */
+
+    --card: 0 0% 15%;
+    --card-foreground: 0 0% 100%;
+
+    --popover: 0 0% 15%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 283 39% 53%; /* Primary color #9B59B6 */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 283 20% 20%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 283 20% 20%;
+    --muted-foreground: 283 10% 70%;
+
+    --accent: 283 20% 20%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 283 20% 25%;
+    --input: 283 20% 25%;
+    --ring: 283 39% 53%;
+
+    --sidebar-background: 0 0% 15%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 283 39% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 283 20% 20%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 283 20% 25%;
+    --sidebar-ring: 283 39% 53%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-clash;
+  }
+}
