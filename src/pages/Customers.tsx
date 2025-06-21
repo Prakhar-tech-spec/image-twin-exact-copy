@@ -88,6 +88,7 @@ const Customers = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showPhotoMenu, setShowPhotoMenu] = useState(false);
+  const [isEmiUpdating, setIsEmiUpdating] = useState(false);
 
   useEffect(() => {
     fetchCustomers();
@@ -341,6 +342,7 @@ const Customers = () => {
         prevLoanAmount !== Number(form.loanAmount) ||
         prevStartDate !== String(form.startDate)
       ) {
+        setIsEmiUpdating(true);
         // Delete all EMIs for this customer
         const emis = await getEmis();
         const customerEmis = emis.filter(e => e.customer_id === selected.id);
@@ -373,6 +375,7 @@ const Customers = () => {
         }
         await fetchEmiHistory(selected.id);
         await fetchAllEmis();
+        setIsEmiUpdating(false);
       }
     } else {
       await addCustomer(form);
@@ -858,22 +861,26 @@ const Customers = () => {
                     })()}
                   </ul>
                 </details>
-                {selected && emiHistory.length > 0 && (
+                {selected && emiHistory.length > 0 && !isEmiUpdating && (
                   <div className="p-4 rounded-xl bg-yellow-50 border border-yellow-300 flex flex-col items-center shadow-sm">
                     <div className="text-lg font-semibold text-yellow-800 mb-1">Due EMI</div>
                     <div className="text-2xl font-bold text-yellow-900">
                       {(() => {
-                        const unpaidEmis = emiHistory.filter(e => e.paid < (parseFloat(e.amount) + parseFloat(e.fine)));
-                        const totalDue = unpaidEmis.reduce((sum, e) => {
-                          const amount = parseFloat(e.amount) || 0;
-                          const fine = parseFloat(e.fine) || 0;
-                          const paid = parseFloat(e.paid) || 0;
-                          return sum + (amount + fine - paid);
-                        }, 0);
                         const loanAmount = parseFloat(selected?.loanAmount) || 0;
-                        const totalFine = unpaidEmis.reduce((sum, e) => sum + (parseFloat(e.fine) || 0), 0);
-                        const displayDue = Math.min(totalDue, loanAmount) + totalFine;
-                        return `₹${displayDue.toFixed(2)}`;
+                        let totalPrincipalPaid = 0;
+                        let totalFinesLeft = 0;
+                        emiHistory.forEach(e => {
+                          // Only principal payments reduce the loan amount
+                          const emiPrincipal = parseFloat(e.amount) || 0;
+                          const emiPaid = parseFloat(e.paid) || 0;
+                          const emiFine = parseFloat(e.fine) || 0;
+                          // If paid more than principal, the rest is fine
+                          totalPrincipalPaid += Math.min(emiPaid, emiPrincipal);
+                          // Only count fines that are still left (not paid)
+                          totalFinesLeft += Math.max(emiFine, 0);
+                        });
+                        const due = Math.max(0, loanAmount - totalPrincipalPaid) + totalFinesLeft;
+                        return `₹${due.toFixed(2)}`;
                       })()}
                     </div>
                     <div className="text-xs text-yellow-700 mt-1">Total unpaid EMI amount (including fines)</div>

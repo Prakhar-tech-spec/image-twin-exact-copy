@@ -71,7 +71,7 @@ const EMI = () => {
   async function markAsPaid(emiId) {
     const emi = emiList.find(e => e.id === emiId);
     if (emi) {
-      await updateEmi({ ...emi, paid: 1 });
+      await updateEmi({ ...emi, paid: (parseFloat(emi.amount) || 0) + (parseFloat(emi.fine) || 0), fine: 0 });
       fetchEmiList();
     }
   }
@@ -110,7 +110,7 @@ const EMI = () => {
   async function markFinePaid(emiId) {
     const emi = emiList.find(e => e.id === emiId);
     if (emi) {
-      await updateEmi({ ...emi, paid: 1 });
+      await updateEmi({ ...emi, paid: (parseFloat(emi.amount) || 0) + (parseFloat(emi.fine) || 0), fine: 0 });
       fetchEmiList();
     }
   }
