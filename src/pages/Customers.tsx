@@ -918,20 +918,26 @@ const Customers = () => {
                     multiple
                     accept=".pdf,.jpg,.jpeg,.png"
                     onChange={(e) => {
-                      const files = Array.from(e.target.files);
-                      if (files.length > 5) {
-                        setForm(f => ({ ...f, idDocs: [] }));
-                        setWarning("You can upload a maximum of 5 files.");
+                      const newFiles = Array.from(e.target.files);
+                      
+                      // Get existing files (could be File objects or strings)
+                      const existingFiles = form.idDocs || [];
+                      const totalCount = existingFiles.length + newFiles.length;
+                      
+                      if (totalCount > 5) {
+                        setWarning("You can upload a maximum of 5 files in total. You already have " + 
+                                   existingFiles.length + " file(s).");
                         e.target.value = null;
                       } else {
-                        setForm(f => ({ ...f, idDocs: files }));
+                        // Append new files to existing ones
+                        setForm(f => ({ ...f, idDocs: [...existingFiles, ...newFiles] }));
                         setWarning("");
                       }
                     }}
                   />
                   <div className="border rounded px-3 py-2 w-full h-full flex items-center text-gray-400 bg-white pointer-events-none">
                     {form.idDocs && form.idDocs.length > 0
-                      ? `${form.idDocs.length} file(s) selected`
+                      ? `${form.idDocs.length} file(s) selected (max 5)`
                       : "Upload ID Documents (max 5 files)"}
                   </div>
                   {warning && <div className="text-red-500 text-sm font-medium absolute left-0 -bottom-5">{warning}</div>}
